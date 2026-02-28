@@ -98,12 +98,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
 /* ── Doc List ── */
 .doc-list { background: #fff; border: 1px solid #ECE9F8; border-radius: 12px; overflow: hidden; }
 .dl-head {
-  display: grid; grid-template-columns: 1fr 90px 130px 90px;
+  display: grid; grid-template-columns: 1fr 90px 130px 90px 72px;
   padding: 9px 16px; background: #FAFAFF; border-bottom: 1px solid #F2EFF8;
   font-size: 11.5px; color: #9CA3AF; font-weight: 600;
 }
 .dl-row {
-  display: grid; grid-template-columns: 1fr 90px 130px 90px;
+  display: grid; grid-template-columns: 1fr 90px 130px 90px 72px;
   padding: 11px 16px; border-bottom: 1px solid #F7F5FF; cursor: pointer;
   font-size: 13px; align-items: center; transition: background 0.15s;
 }
@@ -281,6 +281,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
 .layout-btn.active { background: #7C6FE0; color: #fff; border-color: #7C6FE0; }
 .tbar-btn.regen { color: #7C6FE0; border-color: #C4B5FD; background: #F5F3FF; }
 .tbar-btn.regen:hover { background: #EDE9FE; }
+
+/* Doc action buttons */
+.doc-actions { display: flex; gap: 3px; align-items: center; }
+.doc-act-btn { border: none; background: transparent; cursor: pointer; padding: 3px 5px; border-radius: 5px; font-size: 13px; color: #C4B5FD; transition: all 0.15s; line-height: 1; }
+.doc-act-btn:hover { background: #F3F2FC; }
+.doc-act-btn.star.active { color: #F59E0B; }
+.doc-act-btn.del:hover { color: #EF4444; background: #FFF5F5; }
+.doc-card .doc-actions { margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -389,7 +397,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
 
       <div class="doc-list">
         <div class="dl-head">
-          <div>文档名称</div><div>字数</div><div>更新时间</div><div>信息图</div>
+          <div>文档名称</div><div>字数</div><div>更新时间</div><div>信息图</div><div>操作</div>
         </div>
         <div class="dl-row" onclick="openDemo('demo')">
           <div class="dl-name">
@@ -400,6 +408,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
           <div style="color:#6B7280">2,847</div>
           <div style="color:#6B7280">昨天 14:32</div>
           <div class="dl-status-done">✓ 已生成</div>
+          <div></div>
         </div>
         <div class="dl-row" onclick="openDemo('poster')">
           <div class="dl-name">
@@ -410,6 +419,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
           <div style="color:#6B7280">3,200</div>
           <div style="color:#6B7280">3 天前</div>
           <div class="dl-status-done">✓ 已生成</div>
+          <div></div>
         </div>
         <div id="dynamicList"></div>
       </div>
@@ -621,6 +631,116 @@ let cachedSents  = [];
 let cachedText   = '';
 let debTimer     = null;
 let toastTimer   = null;
+let currentDocId = null;   // ID of the doc currently open in editor
+let saveTimer    = null;   // debounce timer for localStorage auto-save
+
+/* ======================================================
+   LOCALSTORAGE — DOCUMENT PERSISTENCE
+   ====================================================== */
+const DOCS_KEY = 'sih_docs_v1';
+
+function loadDocs() {
+  try { return JSON.parse(localStorage.getItem(DOCS_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+function saveDocs(docs) {
+  localStorage.setItem(DOCS_KEY, JSON.stringify(docs));
+}
+function createDoc(title, content) {
+  const docs = loadDocs();
+  const id   = 'doc_' + Date.now();
+  const now  = Date.now();
+  docs.unshift({ id, title, content, chars: content.length,
+    createdAt: now, updatedAt: now, hasInfographic: false, starred: false });
+  saveDocs(docs);
+  return id;
+}
+function updateDoc(id, patch) {
+  const docs = loadDocs();
+  const idx  = docs.findIndex(d => d.id === id);
+  if (idx !== -1) {
+    Object.assign(docs[idx], patch, { updatedAt: Date.now() });
+    saveDocs(docs);
+  }
+}
+function deleteDocById(id) {
+  saveDocs(loadDocs().filter(d => d.id !== id));
+  renderHubDocs();
+  toast('🗑 已删除文档');
+}
+function toggleStar(id) {
+  const docs = loadDocs();
+  const doc  = docs.find(d => d.id === id);
+  if (doc) { doc.starred = !doc.starred; doc.updatedAt = Date.now(); saveDocs(docs); }
+  renderHubDocs();
+}
+
+function relTime(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60000)    return '刚刚';
+  if (diff < 3600000)  return Math.floor(diff / 60000) + ' 分钟前';
+  if (diff < 86400000) return '今天 ' + new Date(ts).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
+  if (diff < 172800000)return '昨天 ' + new Date(ts).toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit'});
+  return new Date(ts).toLocaleDateString('zh-CN', {month:'numeric', day:'numeric'});
+}
+
+function renderHubDocs() {
+  const docs = loadDocs();
+  const grid = document.getElementById('dynamicGrid');
+  const list = document.getElementById('dynamicList');
+  grid.innerHTML = '';
+  list.innerHTML = '';
+
+  docs.forEach(doc => {
+    const time   = relTime(doc.updatedAt);
+    const hasAI  = doc.hasInfographic;
+    const starCls = doc.starred ? ' active' : '';
+
+    // Grid card
+    const card = document.createElement('div');
+    card.className = 'doc-card';
+    card.innerHTML = `
+      <div class="doc-thumb" style="background:linear-gradient(135deg,#ECFDF5,#A7F3D0)">
+        📝${hasAI ? '<div class="doc-thumb-ai">✦ AI</div>' : ''}
+      </div>
+      <div class="doc-card-body">
+        <div class="doc-card-name">${esc(doc.title)}</div>
+        <div class="doc-card-meta">${doc.chars.toLocaleString()} 字符 · ${time}</div>
+        <div class="doc-actions">
+          <button class="doc-act-btn star${starCls}" title="${doc.starred ? '取消收藏' : '收藏'}"
+            onclick="event.stopPropagation();toggleStar('${doc.id}')">⭐</button>
+          <button class="doc-act-btn del" title="删除"
+            onclick="event.stopPropagation();if(confirm('确认删除「${esc(doc.title)}」？'))deleteDocById('${doc.id}')">🗑</button>
+        </div>
+      </div>`;
+    card.onclick = () => showEditor(doc.title, doc.content, doc.id);
+    grid.appendChild(card);
+
+    // List row
+    const row = document.createElement('div');
+    row.className = 'dl-row';
+    row.innerHTML = `
+      <div class="dl-name">
+        <div class="dl-icon new">📝</div>
+        ${esc(doc.title)}
+        ${hasAI ? '<span class="dl-ai-tag">✦ AI</span>' : ''}
+      </div>
+      <div style="color:#6B7280">${doc.chars.toLocaleString()}</div>
+      <div style="color:#6B7280">${time}</div>
+      <div class="${hasAI ? 'dl-status-done' : 'dl-status-pend'}">${hasAI ? '✓ 已生成' : '未生成'}</div>
+      <div class="doc-actions">
+        <button class="doc-act-btn star${starCls}" title="${doc.starred ? '取消收藏' : '收藏'}"
+          onclick="event.stopPropagation();toggleStar('${doc.id}')">⭐</button>
+        <button class="doc-act-btn del" title="删除"
+          onclick="event.stopPropagation();if(confirm('确认删除「${esc(doc.title)}」？'))deleteDocById('${doc.id}')">🗑</button>
+      </div>`;
+    row.onclick = () => showEditor(doc.title, doc.content, doc.id);
+    list.appendChild(row);
+  });
+
+  // Update nav count (2 static demos + user docs)
+  document.getElementById('navDocCount').textContent = 2 + docs.length;
+}
 
 /* ======================================================
    NAVIGATION
@@ -628,13 +748,15 @@ let toastTimer   = null;
 function showHub() {
   document.getElementById('hubView').style.display   = 'flex';
   document.getElementById('editorView').style.display = 'none';
+  renderHubDocs();
 }
 
-function showEditor(title, content) {
+function showEditor(title, content, docId) {
+  currentDocId = docId || null;
   document.getElementById('hubView').style.display   = 'none';
   document.getElementById('editorView').style.display = 'flex';
 
-  document.getElementById('edTitle').value     = title || '新建文档';
+  document.getElementById('edTitle').value          = title || '新建文档';
   document.getElementById('saveStatus').textContent = '编辑中…';
 
   const editor = document.getElementById('docEditor');
@@ -656,7 +778,10 @@ function showEditor(title, content) {
   setTimeout(() => editor.focus(), 80);
 }
 
-function newDoc()  { showEditor('新建文档', ''); }
+function newDoc() {
+  const id = createDoc('新建文档', '');
+  showEditor('新建文档', '', id);
+}
 
 function openDemo(type) {
   const map = {
@@ -698,8 +823,8 @@ async function handleUpload(e) {
       const result = await mammoth.extractRawText({ arrayBuffer: buf });
       const content = result.value || '';
       const title   = file.name.replace(/\.docx$/i, '');
-      showEditor(title, content);
-      addDocToHub(title, content.length, '刚刚');
+      const id = createDoc(title, content);
+      showEditor(title, content, id);
       toast(`📄 已上传：${file.name}`);
     } catch (err) {
       toast('⚠️ Word 文档解析失败，请尝试另存为 .txt 再上传');
@@ -711,44 +836,14 @@ async function handleUpload(e) {
     reader.onload = ev => {
       const content = ev.target.result;
       const title   = file.name.replace(/\.(txt|md)$/i, '');
-      showEditor(title, content);
-      addDocToHub(title, content.length, '刚刚');
+      const id = createDoc(title, content);
+      showEditor(title, content, id);
       toast(`📄 已上传：${file.name}`);
     };
     reader.readAsText(file, 'UTF-8');
   }
 }
 
-function addDocToHub(title, len, time) {
-  // Grid card
-  const grid  = document.getElementById('dynamicGrid');
-  const card  = document.createElement('div');
-  card.className = 'doc-card';
-  card.innerHTML = `
-    <div class="doc-thumb" style="background:linear-gradient(135deg,#ECFDF5,#A7F3D0)">📝</div>
-    <div class="doc-card-body">
-      <div class="doc-card-name">${esc(title)}</div>
-      <div class="doc-card-meta">${len.toLocaleString()} 字符 · ${time}</div>
-    </div>`;
-  card.onclick = () => showEditor(title, '');
-  grid.appendChild(card);
-
-  // List row
-  const list = document.getElementById('dynamicList');
-  const row  = document.createElement('div');
-  row.className = 'dl-row';
-  row.innerHTML = `
-    <div class="dl-name"><div class="dl-icon new">📝</div>${esc(title)}</div>
-    <div style="color:#6B7280">${len.toLocaleString()}</div>
-    <div style="color:#6B7280">${time}</div>
-    <div class="dl-status-pend">未生成</div>`;
-  row.onclick = () => showEditor(title, '');
-  list.appendChild(row);
-
-  // Update count
-  const cnt = document.getElementById('navDocCount');
-  cnt.textContent = parseInt(cnt.textContent || '2') + 1;
-}
 
 /* ======================================================
    EDITOR INPUT
@@ -798,6 +893,13 @@ function onInput() {
 
 function markSaved() {
   document.getElementById('saveStatus').textContent = '已自动保存';
+  if (!currentDocId) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    const title   = document.getElementById('edTitle').value || '新建文档';
+    const content = document.getElementById('docEditor').innerText || '';
+    updateDoc(currentDocId, { title, content, chars: content.length });
+  }, 500);
 }
 
 function execCmd(cmd, val) {
@@ -1034,10 +1136,10 @@ function renderCard(text) {
   // Teaser (collapsed)
   const top3 = kws.slice(0, 3).join('、');
   document.getElementById('cardTeaser').innerHTML =
-    `✦ <strong>${esc(top3)}</strong> · ${esc(sents[0] || '点击展开查看信息图')}`;
+    `✦ <strong>${esc(top3)}</strong> · ${esc(insights[0] || '点击展开查看信息图')}`;
 
   // Summary
-  document.getElementById('cardSummary').innerHTML = buildSummary(title, kws, sents, chars, mins);
+  document.getElementById('cardSummary').innerHTML = buildSummary(title, kws, insights, chars, mins);
 
   // Gen time
   const d = new Date();
@@ -1050,6 +1152,7 @@ function renderCard(text) {
   document.getElementById('restoreBar').classList.remove('show');
   document.getElementById('igStatus').innerHTML = '<span class="done">✓ 已生成</span>';
 
+  if (currentDocId) updateDoc(currentDocId, { hasInfographic: true });
   toast('✦ AI 摘要已生成，点击展开查看完整信息图');
 }
 
@@ -1366,6 +1469,9 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
+
+// Init: render user docs from localStorage on page load
+renderHubDocs();
 </script>
 </body>
 </html>
