@@ -852,14 +852,38 @@ function extractKeywords(text, n) {
     .map(([w]) => w);
 }
 
-function extractSentences(text, n) {
-  const sents = text.split(/[。！？\n]+/).map(s => s.trim()).filter(s => s.length > 10);
+// 提取有实质内容的完整句子（用于信息图正文展示）
+function extractInsights(text, n) {
+  const sents = text.split(/[。！？]+/).map(s => s.trim().replace(/^\s+/, ''));
   const out = []; const seen = new Set();
+  const skip = /^(此外|同时|另外|然而|因此|综上|总之|总结|首先|其次|最后|例如|比如|注意|请注意|根据|通过|由于)/;
   for (const s of sents) {
-    if (!seen.has(s)) { seen.add(s); out.push(s); if (out.length >= n) break; }
+    if (s.length < 14 || skip.test(s) || seen.has(s)) continue;
+    seen.add(s); out.push(s);
+    if (out.length >= n) break;
   }
   return out;
 }
+
+// 提取文中数字数据点（带上下文）
+function extractDataPoints(text) {
+  const found = []; const seen = new Set();
+  const re = /(\d+(?:\.\d+)?(?:万|亿|千|百)?)\s*([%％倍年月天小时分钟个次项人条])/g;
+  let m;
+  while ((m = re.exec(text)) !== null && found.length < 3) {
+    const raw = m[1] + m[2];
+    if (seen.has(raw) || m[1].length < 1) continue;
+    seen.add(raw);
+    const s  = Math.max(0, m.index - 6);
+    const e  = Math.min(text.length, m.index + raw.length + 8);
+    const ctx = text.slice(s, e).replace(/[，。！？\n]/g, '').trim();
+    found.push({ value: raw, context: fitStr(ctx, 120, 11) });
+  }
+  return found;
+}
+
+// 保留兼容旧调用
+function extractSentences(text, n) { return extractInsights(text, n); }
 
 /* ======================================================
    TEXT FITTING (no overflow, no ellipsis)
@@ -984,17 +1008,18 @@ const THEMES = {
 const THEME_NAMES = { purple:'暮光紫', blue:'钉钉蓝', green:'苔藓绿', amber:'琥珀棕' };
 
 function renderCard(text) {
-  const title = document.getElementById('edTitle').value || '文档标题';
-  const kws   = extractKeywords(text, 8);
-  const sents = extractSentences(text, 3);
-  const chars = text.length;
-  const mins  = Math.max(1, Math.round(chars / 500));
+  const title    = document.getElementById('edTitle').value || '文档标题';
+  const kws      = extractKeywords(text, 8);
+  const insights = extractInsights(text, 4);
+  const datapts  = extractDataPoints(text);
+  const chars    = text.length;
+  const mins     = Math.max(1, Math.round(chars / 500));
 
   cachedText  = text;
   cachedKws   = kws;
-  cachedSents = sents;
+  cachedSents = insights;
 
-  const svg = makeSVG({ title, kws, sents, chars, mins });
+  const svg = makeSVG({ title, kws, insights, datapts, chars, mins });
   document.getElementById('cardSVGWrap').innerHTML = svg;
 
   // Self-review: scan rendered text elements, shrink font if overflow detected
@@ -1025,17 +1050,7 @@ function renderCard(text) {
   document.getElementById('restoreBar').classList.remove('show');
   document.getElementById('igStatus').innerHTML = '<span class="done">✓ 已生成</span>';
 
-  // Auto-expand on first generation
-  if (!isExpanded) {
-    isExpanded = true;
-    document.getElementById('cardBody').classList.add('show');
-    document.getElementById('toggleIco').classList.add('up');
-    document.getElementById('toggleTxt').textContent    = '收起';
-    document.getElementById('cardTitleLbl').textContent = '智能信息图';
-    document.getElementById('cardTeaser').style.display = 'none';
-  }
-
-  toast('✦ 智能信息图已生成！');
+  toast('✦ AI 摘要已生成，点击展开查看完整信息图');
 }
 
 // Self-review: check for overflow and fix font sizes
@@ -1068,150 +1083,189 @@ function buildSummary(title, kws, sents, chars, mins) {
 }
 
 /* ======================================================
-   SVG GENERATION — 3 LAYOUTS
+   SVG GENERATION — 3 LAYOUTS（内容驱动型）
    ====================================================== */
 const FONT = '-apple-system,PingFang SC,sans-serif';
 
-// ── Layout 1: 三栏数据仪表板 ──
-function svgDashboard({ title, kws, sents, chars, mins, t }) {
-  const tLines = wrapStr(title, 148, 14, 2);
-  const statY  = 52 + tLines.length * 18 + 10;
+// ── Layout 1: 杂志海报式（叙述型文章默认）──
+// 顶部全幅标题带 + 左侧关键洞察语句 + 右侧核心词汇
+function svgMagazine({ title, kws, insights, datapts, chars, mins, t }) {
+  const hLines  = wrapStr(title, 330, 15, 2);
+  const headerH = hLines.length > 1 ? 76 : 60;
+  const bodyTop = headerH + 4;
 
-  const kwHtml = kws.slice(0, 6).map((k, i) => {
-    const y = 62 + i * 30;
-    return `<rect x="422" y="${y}" width="108" height="22" rx="11" fill="${t.tag}"/>
-<text x="476" y="${y+15}" text-anchor="middle" font-size="11" fill="${t.tagTxt}" font-family="${FONT}" font-weight="600">${esc(fitStr(k, 96, 11))}</text>`;
+  // 左侧：3 条关键洞察（展示文档真实句子）
+  const insHtml = insights.slice(0, 3).map((s, i) => {
+    const y  = bodyTop + 14 + i * 54;
+    const ls = wrapStr(s, 258, 12.5, 2);
+    const numLabel = ['①','②','③'][i];
+    return `
+<circle cx="28" cy="${y + 11}" r="12" fill="${t.accent}" opacity=".88"/>
+<text x="28" y="${y + 16}" text-anchor="middle" font-size="12" fill="#fff" font-family="${FONT}" font-weight="800">${numLabel}</text>
+${ls.map((l, li) => `<text x="50" y="${y + 8 + li * 18}" font-size="12.5" fill="rgba(255,255,255,${li === 0 ? '0.92' : '0.72'})" font-family="${FONT}">${esc(l)}</text>`).join('\n')}`;
   }).join('\n');
 
-  const sentHtml = sents.slice(0, 3).map((s, i) => {
-    const y = 62 + i * 58;
-    const ls = wrapStr(s, 210, 12, 2);
-    return `<rect x="186" y="${y}" width="220" height="${ls.length > 1 ? 46 : 28}" rx="7" fill="rgba(255,255,255,0.09)"/>
-<circle cx="198" cy="${y+10}" r="3" fill="${t.accent}"/>
-${ls.map((l, li) => `<text x="206" y="${y + 14 + li * 17}" font-size="12" fill="${li === 0 ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.7)'}" font-family="${FONT}">${esc(l)}</text>`).join('\n')}`;
+  // 右侧：词汇标签（使用提取到的关键词，优先较长的词）
+  const rightKws = kws.slice(0, 6);
+  const kwHtml = rightKws.map((k, i) => {
+    const y = bodyTop + 12 + i * 28;
+    return `
+<rect x="350" y="${y}" width="180" height="22" rx="11" fill="${t.tag}"/>
+<text x="440" y="${y+15}" text-anchor="middle" font-size="11" fill="${t.tagTxt}" font-family="${FONT}" font-weight="600">${esc(fitStr(k, 164, 11))}</text>`;
   }).join('\n');
 
-  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 546 252" style="width:100%;border-radius:10px;display:block">
-<defs>
-  <linearGradient id="gL" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.h0}"/><stop offset="100%" stop-color="${t.h1}"/></linearGradient>
-  <linearGradient id="gBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${t.h0}" stop-opacity=".85"/><stop offset="100%" stop-color="${t.h1}" stop-opacity=".68"/></linearGradient>
-</defs>
-<rect width="546" height="252" rx="10" fill="url(#gBg)"/>
-<rect x="0" y="0" width="178" height="252" rx="10" fill="url(#gL)"/>
-<rect x="168" y="0" width="10" height="252" fill="url(#gL)"/>
-<text x="16" y="24" font-size="10" fill="rgba(255,255,255,0.48)" font-family="${FONT}" font-weight="600">✦ AI 智能信息图 · 数据仪表板</text>
-<rect x="14" y="30" width="150" height="1.5" rx=".75" fill="rgba(255,255,255,0.18)"/>
-${tLines.map((l, i) => `<text x="16" y="${48 + i * 19}" font-size="14" fill="#fff" font-family="${FONT}" font-weight="800">${esc(l)}</text>`).join('\n')}
-<rect x="14" y="${statY}" width="150" height="56" rx="9" fill="rgba(255,255,255,0.11)"/>
-<text x="89" y="${statY + 24}" text-anchor="middle" font-size="24" fill="#fff" font-family="${FONT}" font-weight="900">${chars}</text>
-<text x="89" y="${statY + 42}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.48)" font-family="${FONT}">字符总量</text>
-<rect x="14"  y="${statY + 64}" width="70" height="48" rx="8" fill="rgba(255,255,255,0.11)"/>
-<text x="49"  y="${statY + 88}" text-anchor="middle" font-size="20" fill="#fff" font-family="${FONT}" font-weight="800">${kws.length}</text>
-<text x="49"  y="${statY + 104}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.48)" font-family="${FONT}">关键词</text>
-<rect x="92"  y="${statY + 64}" width="72" height="48" rx="8" fill="rgba(255,255,255,0.11)"/>
-<text x="128" y="${statY + 88}" text-anchor="middle" font-size="20" fill="#fff" font-family="${FONT}" font-weight="800">${mins}</text>
-<text x="128" y="${statY + 104}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.48)" font-family="${FONT}">阅读分钟</text>
-<text x="190" y="42" font-size="11.5" fill="rgba(255,255,255,0.62)" font-family="${FONT}" font-weight="700">核心要点</text>
-<rect x="190" y="46" width="36" height="2" rx="1" fill="${t.accent}"/>
-${sentHtml}
-<text x="428" y="42" font-size="11.5" fill="rgba(255,255,255,0.62)" font-family="${FONT}" font-weight="700">关键词</text>
-<rect x="428" y="46" width="28" height="2" rx="1" fill="${t.accent}"/>
-${kwHtml}
-<text x="88" y="244" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.22)" font-family="${FONT}">AI Generated · Smart Infographic</text>
-</svg>`;
-}
+  // 若有数字数据，在右下角展示
+  const dpHtml = datapts.slice(0, 1).map(dp =>
+    `<rect x="350" y="${bodyTop + 186}" width="180" height="36" rx="8" fill="rgba(255,255,255,0.12)"/>
+<text x="440" y="${bodyTop + 207}" text-anchor="middle" font-size="18" fill="#fff" font-family="${FONT}" font-weight="900">${esc(dp.value)}</text>
+<text x="440" y="${bodyTop + 221}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.5)" font-family="${FONT}">${esc(fitStr(dp.context, 150, 10))}</text>`
+  ).join('');
 
-// ── Layout 2: 杂志双栏 ──
-function svgMagazine({ title, kws, sents, chars, mins, t }) {
-  const hLines = wrapStr(title, 310, 16, 2);
-  const headerH = hLines.length > 1 ? 82 : 64;
-
-  const insHtml = sents.slice(0, 3).map((s, i) => {
-    const y  = headerH + 16 + i * 54;
-    const ls = wrapStr(s, 260, 12.5, 2);
-    return `<rect x="16" y="${y}" width="28" height="28" rx="14" fill="${t.accent}" opacity=".9"/>
-<text x="30" y="${y+19}" text-anchor="middle" font-size="13" fill="#fff" font-family="${FONT}" font-weight="800">${i + 1}</text>
-${ls.map((l, li) => `<text x="54" y="${y + 10 + li * 18}" font-size="12.5" fill="rgba(255,255,255,0.88)" font-family="${FONT}">${esc(l)}</text>`).join('\n')}`;
-  }).join('\n');
-
-  const kwHtml = kws.slice(0, 5).map((k, i) => {
-    const y = headerH + 14 + i * 29;
-    return `<rect x="352" y="${y}" width="178" height="22" rx="11" fill="${t.tag}"/>
-<text x="441" y="${y+15}" text-anchor="middle" font-size="11" fill="${t.tagTxt}" font-family="${FONT}" font-weight="600">${esc(fitStr(k, 160, 11))}</text>`;
-  }).join('\n');
-
-  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 546 252" style="width:100%;border-radius:10px;display:block">
+  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 546 260" style="width:100%;border-radius:10px;display:block">
 <defs>
   <linearGradient id="gH" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${t.h0}"/><stop offset="100%" stop-color="${t.h1}"/></linearGradient>
-  <linearGradient id="gBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${t.h0}" stop-opacity=".8"/><stop offset="100%" stop-color="${t.h1}" stop-opacity=".62"/></linearGradient>
+  <linearGradient id="gBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${t.h0}" stop-opacity=".82"/><stop offset="100%" stop-color="${t.h1}" stop-opacity=".65"/></linearGradient>
 </defs>
-<rect width="546" height="252" rx="10" fill="url(#gBg)"/>
+<rect width="546" height="260" rx="10" fill="url(#gBg)"/>
+<!-- 顶部标题带 -->
 <rect x="0" y="0" width="546" height="${headerH}" rx="10" fill="url(#gH)"/>
-<rect x="0" y="${headerH - 10}" width="546" height="10" fill="url(#gH)"/>
-<text x="16" y="22" font-size="10" fill="rgba(255,255,255,0.45)" font-family="${FONT}" font-weight="600">✦ AI 智能信息图 · 杂志双栏</text>
-${hLines.map((l, i) => `<text x="16" y="${38 + i * 22}" font-size="16" fill="#fff" font-family="${FONT}" font-weight="900">${esc(l)}</text>`).join('\n')}
-<text x="530" y="${headerH / 2 + 14}" text-anchor="end" font-size="30" fill="rgba(255,255,255,0.88)" font-family="${FONT}" font-weight="900">${chars}</text>
-<text x="530" y="${headerH / 2 + 28}" text-anchor="end" font-size="10" fill="rgba(255,255,255,0.4)" font-family="${FONT}">字符</text>
-<rect x="336" y="${headerH + 8}" width="1.5" height="${244 - headerH}" rx=".75" fill="rgba(255,255,255,0.2)"/>
+<rect x="0" y="${headerH-8}" width="546" height="8" fill="url(#gH)"/>
+<text x="14" y="18" font-size="9.5" fill="rgba(255,255,255,0.45)" font-family="${FONT}" font-weight="600">✦ AI 智能信息图 · ${mins} 分钟阅读</text>
+${hLines.map((l, i) => `<text x="14" y="${33 + i * 21}" font-size="15" fill="#fff" font-family="${FONT}" font-weight="900">${esc(l)}</text>`).join('\n')}
+<text x="532" y="${Math.round(headerH * 0.62)}" text-anchor="end" font-size="26" fill="rgba(255,255,255,0.85)" font-family="${FONT}" font-weight="900">${chars}</text>
+<text x="532" y="${Math.round(headerH * 0.62) + 14}" text-anchor="end" font-size="9.5" fill="rgba(255,255,255,0.4)" font-family="${FONT}">字符</text>
+<!-- 分割线 -->
+<rect x="334" y="${bodyTop + 6}" width="1" height="${254 - bodyTop - 10}" fill="rgba(255,255,255,0.18)"/>
+<!-- 左侧：关键洞察 -->
 ${insHtml}
-<text x="358" y="${headerH + 8}" font-size="10.5" fill="rgba(255,255,255,0.45)" font-family="${FONT}">关键词 · ${mins} 分钟阅读</text>
+<!-- 右侧：关键词 + 数据点 -->
+<text x="356" y="${bodyTop + 8}" font-size="10" fill="rgba(255,255,255,0.42)" font-family="${FONT}" font-weight="600">核心词汇</text>
 ${kwHtml}
-<text x="273" y="247" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.2)" font-family="${FONT}">AI Generated · Smart Infographic</text>
+${dpHtml}
+<text x="273" y="255" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.18)" font-family="${FONT}">AI Generated · Smart Infographic</text>
 </svg>`;
 }
 
-// ── Layout 3: 概念辐射图 ──
-function svgRadial({ title, kws, sents, chars, mins, t }) {
-  const cx = 273, cy = 122, cr = 44, r = 90;
-  const angles  = [0, 60, 120, 180, 240, 300].map(d => d * Math.PI / 180);
-  const tLines  = wrapStr(title, cr * 1.7, 11, 2);
-  const nodes   = kws.slice(0, 6).map((k, i) => {
-    const a = angles[i];
-    return { nx: cx + r * Math.cos(a), ny: cy + r * Math.sin(a), a, label: fitStr(k, 88, 11) };
-  });
+// ── Layout 2: 数据仪表板（数字多的文档）──
+// 顶部左栏深色 + 右侧大号数据亮点 + 底部洞察条带
+function svgDashboard({ title, kws, insights, datapts, chars, mins, t }) {
+  const tLines = wrapStr(title, 150, 13.5, 2);
 
-  const linesHtml = nodes.map(({ nx, ny, a }) => {
-    const sx = (cx + (cr + 2) * Math.cos(a)).toFixed(1);
-    const sy = (cy + (cr + 2) * Math.sin(a)).toFixed(1);
-    const ex = (cx + (r - 18)  * Math.cos(a)).toFixed(1);
-    const ey = (cy + (r - 18)  * Math.sin(a)).toFixed(1);
-    return `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="rgba(255,255,255,0.28)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  // 数据面板：优先用文中真实数字，否则用字符数/阅读时间
+  const panels = datapts.length >= 2 ? datapts.slice(0, 3) : [
+    { value: String(chars), context: '字符总量' },
+    { value: String(mins) + '分钟', context: '预计阅读' },
+    { value: String(kws.length), context: '核心词汇' },
+  ];
+
+  const panelHtml = panels.slice(0, 3).map((p, i) => {
+    const x = 184 + i * 124;
+    const vLines = wrapStr(p.value, 100, 22, 1);
+    const cLines = wrapStr(p.context, 110, 10.5, 2);
+    return `
+<rect x="${x}" y="14" width="114" height="90" rx="10" fill="rgba(255,255,255,0.1)"/>
+<rect x="${x+5}" y="14" width="4" height="90" rx="2" fill="${t.accent}" opacity=".7"/>
+<text x="${x+57}" y="52" text-anchor="middle" font-size="26" fill="#fff" font-family="${FONT}" font-weight="900">${esc(vLines[0] || p.value.slice(0,8))}</text>
+${cLines.map((cl, ci) => `<text x="${x+57}" y="${67 + ci*14}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.52)" font-family="${FONT}">${esc(cl)}</text>`).join('')}`;
   }).join('\n');
 
-  const nodesHtml = nodes.map(({ nx, ny, label }) =>
-    `<rect x="${(nx - 54).toFixed(1)}" y="${(ny - 13).toFixed(1)}" width="108" height="26" rx="13" fill="${t.tag}"/>
-<text x="${nx.toFixed(1)}" y="${(ny + 5).toFixed(1)}" text-anchor="middle" font-size="11" fill="${t.tagTxt}" font-family="${FONT}" font-weight="700">${esc(label)}</text>`
+  // 底部三条洞察语句
+  const insHtml = insights.slice(0, 3).map((s, i) => {
+    const y  = 122 + i * 44;
+    const ls = wrapStr(s, 350, 12.5, 2);
+    return `
+<rect x="184" y="${y}" width="350" height="${ls.length > 1 ? 38 : 24}" rx="6" fill="rgba(255,255,255,0.08)"/>
+<circle cx="197" cy="${y + 11}" r="4" fill="${t.accent}" opacity=".8"/>
+${ls.map((l, li) => `<text x="208" y="${y + 14 + li * 17}" font-size="12" fill="rgba(255,255,255,${li===0?'0.9':'0.68'})" font-family="${FONT}">${esc(l)}</text>`).join('')}`;
+  }).join('\n');
+
+  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 546 260" style="width:100%;border-radius:10px;display:block">
+<defs>
+  <linearGradient id="gL" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.h0}"/><stop offset="100%" stop-color="${t.h1}"/></linearGradient>
+  <linearGradient id="gBg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${t.h0}" stop-opacity=".84"/><stop offset="100%" stop-color="${t.h1}" stop-opacity=".68"/></linearGradient>
+</defs>
+<rect width="546" height="260" rx="10" fill="url(#gBg)"/>
+<!-- 左侧深色列 -->
+<rect x="0" y="0" width="180" height="260" rx="10" fill="url(#gL)"/>
+<rect x="170" y="0" width="10" height="260" fill="url(#gL)"/>
+<text x="16" y="22" font-size="9.5" fill="rgba(255,255,255,0.45)" font-family="${FONT}" font-weight="600">✦ AI 智能信息图</text>
+<rect x="14" y="28" width="148" height="1.5" rx=".75" fill="rgba(255,255,255,0.18)"/>
+${tLines.map((l, i) => `<text x="16" y="${45 + i * 20}" font-size="13.5" fill="#fff" font-family="${FONT}" font-weight="800">${esc(l)}</text>`).join('\n')}
+<!-- 关键词列表 -->
+<text x="16" y="${50 + tLines.length * 20 + 14}" font-size="9.5" fill="rgba(255,255,255,0.4)" font-family="${FONT}" font-weight="600">核心词汇</text>
+${kws.slice(0, 5).map((k, i) => {
+  const y = 50 + tLines.length * 20 + 26 + i * 22;
+  return `<text x="16" y="${y}" font-size="11.5" fill="rgba(255,255,255,0.78)" font-family="${FONT}">· ${esc(fitStr(k, 136, 11.5))}</text>`;
+}).join('\n')}
+<text x="90" y="252" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.22)" font-family="${FONT}">AI Generated</text>
+<!-- 右上：数据面板 -->
+${panelHtml}
+<!-- 右下：洞察语句 -->
+${insHtml}
+</svg>`;
+}
+
+// ── Layout 3: 概念辐射图（概念型文章）──
+// 中心标题圆 + 六方向洞察节点（展示实际短句）
+function svgRadial({ title, kws, insights, datapts, chars, mins, t }) {
+  const cx = 273, cy = 128, cr = 46, r = 94;
+  const angles = [0, 60, 120, 180, 240, 300].map(d => d * Math.PI / 180);
+  const tLines = wrapStr(title, cr * 1.8, 11, 2);
+
+  // 节点内容：优先用真实关键词（较长的词更有信息量）
+  const nodeLabels = kws.slice(0, 6).map(k => fitStr(k, 90, 11));
+  while (nodeLabels.length < 6) nodeLabels.push('');
+
+  const nodes = angles.map((a, i) => ({
+    nx: cx + r * Math.cos(a), ny: cy + r * Math.sin(a), a,
+    label: nodeLabels[i] || '',
+  }));
+
+  const linesHtml = nodes.filter(n => n.label).map(({ nx, ny, a }) => {
+    const sx = (cx + (cr + 3) * Math.cos(a)).toFixed(1);
+    const sy = (cy + (cr + 3) * Math.sin(a)).toFixed(1);
+    const ex = (cx + (r - 20) * Math.cos(a)).toFixed(1);
+    const ey = (cy + (r - 20) * Math.sin(a)).toFixed(1);
+    return `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  }).join('\n');
+
+  const nodesHtml = nodes.filter(n => n.label).map(({ nx, ny, label }) =>
+    `<rect x="${(nx-54).toFixed(1)}" y="${(ny-13).toFixed(1)}" width="108" height="26" rx="13" fill="${t.tag}"/>
+<text x="${nx.toFixed(1)}" y="${(ny+5).toFixed(1)}" text-anchor="middle" font-size="11" fill="${t.tagTxt}" font-family="${FONT}" font-weight="700">${esc(label)}</text>`
   ).join('\n');
 
-  const cornerSnippets = sents.slice(0, 2).map((s, i) => {
-    const snippet = fitStr(s, i === 0 ? 200 : 180, 10.5);
-    return `<text x="${i === 0 ? 14 : 350}" y="238" font-size="10.5" fill="rgba(255,255,255,0.38)" font-family="${FONT}">${esc(snippet)}</text>`;
-  }).join('\n');
+  // 底部条带：展示最有价值的一条洞察语句
+  const ins0 = insights[0] || '';
+  const insLine = wrapStr(ins0, 480, 11, 2);
 
-  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 546 252" style="width:100%;border-radius:10px;display:block">
+  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 546 260" style="width:100%;border-radius:10px;display:block">
 <defs>
-  <radialGradient id="gRad" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${t.h1}" stop-opacity=".88"/><stop offset="100%" stop-color="${t.h0}" stop-opacity=".72"/></radialGradient>
-  <radialGradient id="gCenter" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${t.h1}"/><stop offset="100%" stop-color="${t.h0}"/></radialGradient>
+  <radialGradient id="gRad" cx="50%" cy="48%" r="52%"><stop offset="0%" stop-color="${t.h1}" stop-opacity=".86"/><stop offset="100%" stop-color="${t.h0}" stop-opacity=".7"/></radialGradient>
+  <radialGradient id="gC" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="${t.h1}"/><stop offset="100%" stop-color="${t.h0}"/></radialGradient>
 </defs>
-<rect width="546" height="252" rx="10" fill="url(#gRad)"/>
-<text x="16" y="20" font-size="10" fill="rgba(255,255,255,0.38)" font-family="${FONT}" font-weight="600">✦ AI 智能信息图 · 概念辐射图</text>
-<text x="16" y="36" font-size="10" fill="rgba(255,255,255,0.38)" font-family="${FONT}">${chars} 字符 · ${mins} 分钟阅读</text>
+<rect width="546" height="260" rx="10" fill="url(#gRad)"/>
+<text x="14" y="18" font-size="9.5" fill="rgba(255,255,255,0.38)" font-family="${FONT}" font-weight="600">✦ AI 智能信息图 · 概念辐射图 · ${chars}字 · ${mins}分钟阅读</text>
 ${linesHtml}
 ${nodesHtml}
-<circle cx="${cx}" cy="${cy}" r="${cr}" fill="url(#gCenter)"/>
-<circle cx="${cx}" cy="${cy}" r="${cr}" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-${tLines.map((l, i) => `<text x="${cx}" y="${cy - (tLines.length - 1) * 7 + i * 15}" text-anchor="middle" font-size="11.5" fill="#fff" font-family="${FONT}" font-weight="800">${esc(l)}</text>`).join('\n')}
-${cornerSnippets}
-<text x="273" y="249" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.2)" font-family="${FONT}">AI Generated · Smart Infographic</text>
+<circle cx="${cx}" cy="${cy}" r="${cr}" fill="url(#gC)"/>
+<circle cx="${cx}" cy="${cy}" r="${cr}" fill="none" stroke="rgba(255,255,255,0.38)" stroke-width="1.5"/>
+${tLines.map((l, i) => `<text x="${cx}" y="${cy - (tLines.length-1)*8 + i*16}" text-anchor="middle" font-size="12" fill="#fff" font-family="${FONT}" font-weight="800">${esc(l)}</text>`).join('\n')}
+<!-- 底部洞察条 -->
+<rect x="0" y="232" width="546" height="28" rx="0" fill="rgba(0,0,0,0.18)"/>
+<rect x="0" y="243" width="546" height="17" fill="rgba(0,0,0,0.18)"/>
+<rect x="0" y="232" width="546" height="28" rx="0" fill="rgba(0,0,0,0.0)"/>
+<rect x="14" y="235" width="3" height="18" rx="1.5" fill="${t.accent}"/>
+${insLine.map((l, i) => `<text x="24" y="${246 + i * 14}" font-size="11" fill="rgba(255,255,255,0.75)" font-family="${FONT}">${esc(l)}</text>`).join('\n')}
+<text x="273" y="256" text-anchor="middle" font-size="8.5" fill="rgba(255,255,255,0.18)" font-family="${FONT}">AI Generated · Smart Infographic</text>
 </svg>`;
 }
 
-function makeSVG({ title, kws, sents, chars, mins }) {
+function makeSVG({ title, kws, insights, datapts, chars, mins }) {
   const t      = THEMES[curTheme];
   const layout = curLayout === 'auto' ? autoLayout(cachedText, kws) : curLayout;
-  if (layout === 'magazine') return svgMagazine({ title, kws, sents, chars, mins, t });
-  if (layout === 'radial')   return svgRadial({ title, kws, sents, chars, mins, t });
-  return svgDashboard({ title, kws, sents, chars, mins, t });
+  if (layout === 'dashboard') return svgDashboard({ title, kws, insights, datapts, chars, mins, t });
+  if (layout === 'radial')    return svgRadial({ title, kws, insights, datapts, chars, mins, t });
+  return svgMagazine({ title, kws, insights, datapts, chars, mins, t });
 }
 
 /* ======================================================
@@ -1270,11 +1324,12 @@ function applyTheme(name, el) {
   el.classList.add('active');
   curTheme = name;
   if (cardVisible && cachedText) {
-    const title = document.getElementById('edTitle').value || '文档标题';
-    const chars = cachedText.length;
-    const mins  = Math.max(1, Math.round(chars / 500));
+    const title   = document.getElementById('edTitle').value || '文档标题';
+    const chars   = cachedText.length;
+    const mins    = Math.max(1, Math.round(chars / 500));
+    const datapts = extractDataPoints(cachedText);
     document.getElementById('cardSVGWrap').innerHTML =
-      makeSVG({ title, kws: cachedKws, sents: cachedSents, chars, mins });
+      makeSVG({ title, kws: cachedKws, insights: cachedSents, datapts, chars, mins });
     setTimeout(() => reviewSVG(), 80);
   }
   toast(`已切换配色：${THEME_NAMES[name]}`);
