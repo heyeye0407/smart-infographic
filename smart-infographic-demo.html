@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能信息图卡片 Demo — 钉钉文档</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --dt-blue: #007FFF; --dt-blue-light: #E6F2FF;
+  --dt-gray: #F5F6F7; --dt-gray-mid: #E8EAED;
+  --dt-gray-text: #8C9099; --dt-text: #1F2329; --dt-text-sec: #4E5969;
+  --dt-green: #00B42A; --dt-red: #F53F3F; --radius: 8px;
+}
+body { font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; background:#F0F2F5; min-height:100vh; color:var(--dt-text); }
+
+/* ── 顶栏 ── */
+.topbar { height:52px; background:#fff; border-bottom:1px solid var(--dt-gray-mid); display:flex; align-items:center; padding:0 24px; gap:16px; position:sticky; top:0; z-index:100; }
+.logo { display:flex; align-items:center; gap:8px; font-weight:600; color:var(--dt-blue); font-size:16px; }
+.logo svg { width:28px; height:28px; }
+.doc-title-bar { flex:1; font-size:15px; font-weight:500; }
+.topbar-actions { display:flex; gap:8px; }
+.btn-sm { padding:5px 14px; border-radius:6px; font-size:13px; border:1px solid var(--dt-gray-mid); background:#fff; cursor:pointer; color:var(--dt-text); transition:all 0.15s; font-family:inherit; }
+.btn-sm:hover { background:var(--dt-gray); }
+.btn-sm.primary { background:var(--dt-blue); color:#fff; border-color:var(--dt-blue); }
+.btn-sm.primary:hover { background:#0066CC; }
+
+/* ── 布局 ── */
+.layout { display:flex; max-width:1200px; margin:0 auto; gap:24px; padding:32px 24px; }
+.doc-panel { flex:1; min-width:0; background:#fff; border-radius:var(--radius); box-shadow:0 1px 4px rgba(0,0,0,0.06); overflow:hidden; }
+.doc-meta { padding:32px 48px 16px; border-bottom:1px solid var(--dt-gray-mid); }
+.doc-meta h1 { font-size:26px; font-weight:700; line-height:1.4; margin-bottom:12px; }
+.doc-meta-row { display:flex; gap:16px; align-items:center; font-size:13px; color:var(--dt-gray-text); }
+.avatar { width:22px; height:22px; border-radius:50%; background:var(--dt-blue); color:#fff; font-size:11px; display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
+
+/* ── 信息图恢复条 ── */
+.restore-bar { margin:12px 48px; padding:10px 16px; background:#F5F6F7; border-radius:8px; border:1px dashed #C8CACF; display:none; align-items:center; gap:12px; font-size:13px; color:var(--dt-gray-text); }
+.restore-bar button { margin-left:auto; padding:4px 12px; border-radius:6px; border:1px solid var(--dt-blue); background:#fff; color:var(--dt-blue); font-size:12px; cursor:pointer; font-family:inherit; }
+.restore-bar button:hover { background:var(--dt-blue-light); }
+
+/* ── 信息图卡片 ── */
+.info-card { margin:16px 48px; border-radius:var(--radius); border:1.5px solid var(--dt-blue); background:linear-gradient(135deg,#F0F8FF,#E6F2FF); overflow:hidden; }
+.card-header { display:flex; align-items:center; padding:10px 14px; gap:8px; cursor:pointer; user-select:none; }
+.card-header:hover { background:rgba(0,127,255,0.04); }
+.ai-badge { display:inline-flex; align-items:center; background:var(--dt-blue); color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:4px; letter-spacing:0.5px; }
+.card-title { font-size:13px; font-weight:600; color:var(--dt-blue); flex:1; }
+.card-tag { font-size:11px; color:var(--dt-gray-text); background:var(--dt-gray); padding:2px 8px; border-radius:10px; }
+.toggle-btn { display:flex; align-items:center; gap:4px; font-size:12px; color:var(--dt-blue); background:none; border:none; cursor:pointer; padding:4px 8px; border-radius:4px; font-family:inherit; }
+.toggle-btn:hover { background:rgba(0,127,255,0.1); }
+.toggle-icon { transition:transform 0.3s; display:inline-block; }
+.toggle-icon.rotated { transform:rotate(180deg); }
+
+/* 收起态 */
+.card-collapsed { padding:0 14px 14px; }
+.summary-text { font-size:13.5px; line-height:1.7; font-weight:500; margin-bottom:8px; padding:8px 10px; background:rgba(255,255,255,0.7); border-radius:6px; border-left:3px solid var(--dt-blue); }
+.bullets { list-style:none; display:flex; flex-direction:column; gap:5px; }
+.bullets li { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; color:var(--dt-text-sec); line-height:1.6; }
+.bullet-dot { width:16px; height:16px; border-radius:50%; background:var(--dt-blue); color:#fff; font-size:9px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:2px; font-weight:700; }
+
+/* 展开态 */
+.card-expanded { padding:0 14px 14px; display:none; }
+.card-expanded.show { display:block; }
+.chart-wrap { border-radius:10px; overflow:hidden; border:1px solid #E0D4C4; }
+@keyframes svgIn { from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)} }
+.svg-enter { animation:svgIn 0.45s ease forwards; }
+
+/* 编辑面板 */
+.edit-panel { display:none; margin:10px 0 0; padding:14px; background:#fff; border-radius:8px; border:1px solid var(--dt-gray-mid); }
+.edit-panel.show { display:block; }
+.edit-panel h5 { font-size:12px; color:var(--dt-gray-text); margin-bottom:8px; font-weight:600; }
+.theme-options { display:flex; gap:8px; margin-bottom:12px; }
+.theme-opt { padding:6px 14px; border-radius:20px; font-size:12px; border:1.5px solid var(--dt-gray-mid); background:#fff; cursor:pointer; font-family:inherit; display:flex; align-items:center; gap:6px; transition:all 0.15s; }
+.theme-opt:hover { border-color:var(--dt-blue); }
+.theme-opt.active { border-color:var(--dt-blue); background:var(--dt-blue-light); font-weight:600; color:var(--dt-blue); }
+.theme-dot { width:10px; height:10px; border-radius:50%; }
+.edit-footer { display:flex; justify-content:flex-end; gap:8px; padding-top:10px; border-top:1px solid var(--dt-gray); }
+.btn-edit { padding:5px 14px; border-radius:6px; font-size:12px; border:1px solid var(--dt-gray-mid); background:#fff; cursor:pointer; font-family:inherit; }
+.btn-edit:hover { background:var(--dt-gray); }
+.btn-edit.primary { background:var(--dt-blue); color:#fff; border-color:var(--dt-blue); }
+
+/* AI摘要 */
+.ai-summary { font-size:12.5px; color:var(--dt-text-sec); line-height:1.7; margin-top:10px; padding:8px 10px; background:rgba(255,255,255,0.6); border-radius:6px; }
+
+/* 工具栏 */
+.card-toolbar { display:flex; align-items:center; justify-content:space-between; padding:10px 14px 6px; border-top:1px solid rgba(0,127,255,0.12); margin-top:10px; }
+.toolbar-left { display:flex; gap:6px; }
+.toolbar-right { display:flex; gap:6px; align-items:center; }
+.tool-btn { display:flex; align-items:center; gap:5px; padding:5px 10px; border-radius:5px; font-size:12px; border:1px solid var(--dt-gray-mid); background:#fff; cursor:pointer; color:var(--dt-text-sec); transition:all 0.15s; font-family:inherit; }
+.tool-btn:hover { border-color:var(--dt-blue); color:var(--dt-blue); background:var(--dt-blue-light); }
+.tool-btn.active { border-color:var(--dt-blue); color:var(--dt-blue); background:var(--dt-blue-light); font-weight:600; }
+.tool-btn.close-btn:hover { border-color:var(--dt-red); color:var(--dt-red); background:#FFF0F0; }
+.gen-time { font-size:11px; color:var(--dt-gray-text); }
+
+/* ── 流水线弹窗 ── */
+.pipeline-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+.pipeline-overlay.show { opacity:1; pointer-events:all; }
+.pipeline-box { background:#fff; border-radius:16px; padding:32px 40px; width:480px; box-shadow:0 20px 60px rgba(0,0,0,0.2); text-align:center; }
+.pipeline-title { font-size:16px; font-weight:700; margin-bottom:6px; }
+.pipeline-subtitle { font-size:13px; color:var(--dt-gray-text); margin-bottom:24px; min-height:20px; }
+.pipeline-steps { display:flex; align-items:center; justify-content:center; gap:0; margin-bottom:24px; }
+.p-step { display:flex; flex-direction:column; align-items:center; gap:8px; opacity:0.3; transition:opacity 0.4s,transform 0.4s; transform:translateY(4px); }
+.p-step.active { opacity:1; transform:translateY(0); }
+.p-step.done { opacity:0.6; }
+.p-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; border:2px solid var(--dt-gray-mid); background:var(--dt-gray); transition:all 0.4s; }
+.p-step.active .p-icon { border-color:var(--dt-blue); background:var(--dt-blue-light); box-shadow:0 0 0 4px rgba(0,127,255,0.15); }
+.p-step.done .p-icon { border-color:var(--dt-green); background:#E8FFF0; }
+.p-label { font-size:11px; color:var(--dt-text-sec); font-weight:500; white-space:nowrap; }
+.p-arrow { font-size:18px; color:var(--dt-gray-mid); margin:0 4px; padding-bottom:20px; }
+.p-progress { height:4px; background:var(--dt-gray-mid); border-radius:2px; overflow:hidden; margin-bottom:14px; }
+.p-bar { height:100%; background:linear-gradient(90deg,#8FAF8A,#C4855A,var(--dt-blue)); border-radius:2px; width:0%; transition:width 0.5s ease; }
+.p-status { font-size:13px; color:var(--dt-text-sec); min-height:20px; }
+.p-status.done { color:var(--dt-green); font-weight:600; }
+
+/* ── 文档正文 ── */
+.doc-body { padding:16px 48px 48px; font-size:15px; line-height:1.9; color:var(--dt-text); }
+.doc-body h2 { font-size:18px; font-weight:700; margin:28px 0 12px; }
+.doc-body h3 { font-size:15px; font-weight:600; margin:20px 0 8px; color:var(--dt-text-sec); }
+.doc-body p { margin-bottom:12px; }
+.doc-body ul { padding-left:20px; margin-bottom:12px; }
+.doc-body li { margin-bottom:6px; }
+.hl { background:#FFF9E6; padding:1px 4px; border-radius:3px; }
+.dt { width:100%; border-collapse:collapse; margin:16px 0; font-size:13.5px; }
+.dt th { background:var(--dt-gray); padding:8px 14px; text-align:left; font-weight:600; border:1px solid var(--dt-gray-mid); color:var(--dt-text-sec); }
+.dt td { padding:8px 14px; border:1px solid var(--dt-gray-mid); }
+.dt tr:hover td { background:var(--dt-gray); }
+.up { color:var(--dt-green); font-weight:600; }
+.dn { color:var(--dt-red); font-weight:600; }
+.wn { color:#FF7D00; font-weight:600; }
+
+/* ── 右侧面板 ── */
+.side-panel { width:248px; flex-shrink:0; display:flex; flex-direction:column; gap:16px; }
+.side-card { background:#fff; border-radius:var(--radius); padding:16px; box-shadow:0 1px 4px rgba(0,0,0,0.06); }
+.side-card h4 { font-size:13px; font-weight:600; margin-bottom:12px; color:var(--dt-text-sec); display:flex; align-items:center; gap:6px; }
+.side-card h4::before { content:''; width:3px; height:12px; background:var(--dt-blue); border-radius:2px; display:inline-block; }
+.toc-li { padding:5px 8px; border-radius:4px; font-size:12.5px; color:var(--dt-text-sec); cursor:pointer; transition:all 0.15s; margin-bottom:2px; }
+.toc-li:hover { background:var(--dt-gray); color:var(--dt-blue); }
+.toc-li.h2 { padding-left:8px; font-weight:600; }
+.toc-li.h3 { padding-left:20px; color:var(--dt-gray-text); font-size:12px; }
+.stat-r { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--dt-gray); font-size:12.5px; }
+.stat-r:last-child { border-bottom:none; }
+.stat-v { font-weight:700; color:var(--dt-blue); font-size:14px; }
+
+/* ── 收起态 teaser & 展开态 actions ── */
+.card-teaser { flex:1; font-size:12.5px; color:var(--dt-text-sec); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.card-teaser strong { color:var(--dt-blue); }
+
+/* ── 编辑面板重构 ── */
+.edit-tabs { display:flex; border-bottom:1px solid var(--dt-gray-mid); margin-bottom:12px; }
+.edit-tab { padding:7px 16px; font-size:12px; border:none; background:none; cursor:pointer; font-family:inherit; color:var(--dt-gray-text); border-bottom:2px solid transparent; margin-bottom:-1px; transition:all 0.15s; }
+.edit-tab.active { color:var(--dt-blue); border-bottom-color:var(--dt-blue); font-weight:600; }
+.edit-fields { display:flex; flex-direction:column; gap:8px; }
+.edit-field { display:flex; flex-direction:column; gap:3px; }
+.edit-field label { font-size:11px; color:var(--dt-gray-text); font-weight:600; letter-spacing:0.3px; }
+.edit-field input { padding:6px 10px; border-radius:5px; border:1px solid var(--dt-gray-mid); font-size:12.5px; font-family:inherit; outline:none; color:var(--dt-text); }
+.edit-field input:focus { border-color:var(--dt-blue); box-shadow:0 0 0 2px rgba(0,127,255,0.12); }
+.style-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.style-opt { padding:10px 12px; border-radius:8px; border:1.5px solid var(--dt-gray-mid); cursor:pointer; transition:all 0.15s; }
+.style-opt.active { border-color:var(--dt-blue); background:var(--dt-blue-light); }
+.style-opt:hover:not(.active) { border-color:#C8CACF; background:var(--dt-gray); }
+.style-opt-name { font-size:12px; font-weight:600; color:var(--dt-text); }
+.style-opt-desc { font-size:10px; color:var(--dt-gray-text); margin-top:2px; }
+.style-swatch { width:100%; height:5px; border-radius:3px; margin-bottom:7px; }
+
+/* ── Toast ── */
+.toast { position:fixed; bottom:32px; left:50%; transform:translateX(-50%) translateY(20px); background:#1F2329; color:#fff; padding:10px 20px; border-radius:8px; font-size:13px; opacity:0; transition:all 0.3s; z-index:300; pointer-events:none; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="8" fill="#007FFF"/><path d="M7 14C7 10.134 10.134 7 14 7C17.866 7 21 10.134 21 14C21 17.866 17.866 21 14 21" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="14" r="3" fill="white"/></svg>
+    钉钉文档
+  </div>
+  <div class="doc-title-bar">2025年Q3经营分析报告 — 星云科技</div>
+  <div class="topbar-actions">
+    <button class="btn-sm" onclick="toast('已复制分享链接')">分享</button>
+    <button class="btn-sm" onclick="downloadSVG()">导出</button>
+    <button class="btn-sm primary" onclick="triggerGen()">✨ 重新生成信息图</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="doc-panel">
+
+    <div class="doc-meta">
+      <h1>2025年Q3经营分析报告</h1>
+      <div class="doc-meta-row">
+        <span class="avatar">张</span>
+        <span>张明辉 &nbsp;·&nbsp; 上次编辑于 2025年10月14日</span>
+        <span style="margin-left:auto;color:var(--dt-blue);font-size:12px;">📄 共 2,847 字</span>
+      </div>
+    </div>
+
+    <!-- 关闭后的恢复条 -->
+    <div class="restore-bar" id="restoreBar">
+      <span>💡 信息图已关闭</span>
+      <button onclick="restoreCard()">重新显示</button>
+    </div>
+
+    <!-- ★ 信息图卡片 ★ -->
+    <div class="info-card" id="infoCard">
+      <div class="card-header" onclick="toggleCard()">
+        <span class="ai-badge">✦ AI</span>
+        <span class="card-title" id="cardTitle">摘要</span>
+        <span class="card-teaser" id="cardTeaser">📊 发现 <strong>4个亮眼指标</strong> · 营收 +31%，留存率创历史峰值</span>
+        <button class="toggle-btn">
+          <span id="toggleText">展开看看</span>
+          <i class="toggle-icon" id="toggleIcon">▾</i>
+        </button>
+      </div>
+
+      <!-- 收起态（teaser 已在 header，此处隐藏） -->
+      <div id="cardCollapsed" style="display:none"></div>
+
+      <!-- 展开态 -->
+      <div class="card-expanded" id="cardExpanded">
+
+        <!-- 信息图 SVG -->
+        <div class="chart-wrap">
+          <!--
+            viewBox: 0 0 880 510
+            Header:  y=16 h=62  (bottom=78)
+            Row1:    y=90 h=206 (bottom=296)  cells A/B/C
+            Row2:    y=308 h=154 (bottom=462) cells D/E/F
+            Footer:  y=474 h=22  (bottom=496)
+            Cols Row1: A x=16 w=192 | B x=220 w=376 | C x=608 w=256
+            Cols Row2: D x=16 w=260 | E x=288 w=260 | F x=560 w=304
+          -->
+          <svg id="sv1" viewBox="0 0 880 510" xmlns="http://www.w3.org/2000/svg"
+               style="width:100%;height:auto;display:block;"
+               font-family="'PingFang SC','Microsoft YaHei','Hiragino Sans GB',sans-serif">
+            <defs>
+              <!-- 背景渐变 -->
+              <linearGradient id="gBg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#FAF3E8"/>
+                <stop offset="100%" stop-color="#F0E4D0"/>
+              </linearGradient>
+              <!-- Header 深棕 -->
+              <linearGradient id="gHeader" x1="0" y1="0" x2="0" y2="1">
+                <stop id="gH0" offset="0%" stop-color="#6B4E3D"/>
+                <stop id="gH1" offset="100%" stop-color="#4A3020"/>
+              </linearGradient>
+              <!-- 英雄色（Cell A + E） -->
+              <linearGradient id="gHero" x1="0" y1="0" x2="0" y2="1">
+                <stop id="gA0" offset="0%" stop-color="#6E9C6A"/>
+                <stop id="gA1" offset="100%" stop-color="#4A7B46"/>
+              </linearGradient>
+              <!-- 暖金徽章 -->
+              <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1">
+                <stop id="gG0" offset="0%" stop-color="#D4A853"/>
+                <stop id="gG1" offset="100%" stop-color="#B8893C"/>
+              </linearGradient>
+              <!-- 赭石（风险/硬件） -->
+              <linearGradient id="gTerra" x1="0" y1="0" x2="0" y2="1">
+                <stop id="gT0" offset="0%" stop-color="#D4895C"/>
+                <stop id="gT1" offset="100%" stop-color="#B5693A"/>
+              </linearGradient>
+              <!-- 蓝灰（服务/Q4） -->
+              <linearGradient id="gBlue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#7A9CBB"/>
+                <stop offset="100%" stop-color="#5A7EA0"/>
+              </linearGradient>
+              <!-- 圆形背景 -->
+              <radialGradient id="rSage"><stop offset="0%" stop-color="#C8DFC6"/><stop offset="100%" stop-color="#EBF4EA"/></radialGradient>
+              <radialGradient id="rBlue"><stop offset="0%" stop-color="#BDD0E0"/><stop offset="100%" stop-color="#EAF2F8"/></radialGradient>
+              <radialGradient id="rTerra"><stop offset="0%" stop-color="#E4C4A8"/><stop offset="100%" stop-color="#FAF0E8"/></radialGradient>
+              <!-- 阴影 -->
+              <filter id="sh"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#8B6A50" flood-opacity="0.09"/></filter>
+              <filter id="shS"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="#8B6A50" flood-opacity="0.06"/></filter>
+              <!-- 点纹 -->
+              <pattern id="dots" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+                <circle cx="7" cy="7" r="1" fill="#BFB5A8" opacity="0.35"/>
+              </pattern>
+              <!-- ClipPaths 防溢出 -->
+              <clipPath id="cpA"><rect x="16" y="90" width="192" height="206" rx="14"/></clipPath>
+              <clipPath id="cpB"><rect x="220" y="90" width="376" height="206" rx="14"/></clipPath>
+              <clipPath id="cpC"><rect x="608" y="90" width="256" height="206" rx="14"/></clipPath>
+              <clipPath id="cpD"><rect x="16" y="308" width="260" height="154" rx="14"/></clipPath>
+              <clipPath id="cpE"><rect x="288" y="308" width="260" height="154" rx="14"/></clipPath>
+              <clipPath id="cpF"><rect x="560" y="308" width="304" height="154" rx="14"/></clipPath>
+              <clipPath id="cpHead"><rect x="16" y="16" width="848" height="62" rx="14"/></clipPath>
+            </defs>
+
+            <!-- 背景 -->
+            <rect width="880" height="510" fill="url(#gBg)" rx="10"/>
+            <rect width="880" height="510" fill="url(#dots)" rx="10"/>
+
+            <!-- 植物装饰：左上 -->
+            <g opacity="0.22">
+              <ellipse cx="28" cy="54" rx="36" ry="12" fill="#5C8A59" transform="rotate(-42 28 54)"/>
+              <ellipse cx="12" cy="84" rx="28" ry="10" fill="#7E9E7B" transform="rotate(-65 12 84)"/>
+              <ellipse cx="56" cy="26" rx="20" ry="7" fill="#9DB89A" transform="rotate(-18 56 26)"/>
+              <ellipse cx="68" cy="64" rx="16" ry="6" fill="#6D9669" transform="rotate(-32 68 64)"/>
+              <path d="M36 94 Q46 64 56 26" stroke="#7E9E7B" stroke-width="1.5" fill="none" opacity="0.6"/>
+            </g>
+            <!-- 植物装饰：右下 -->
+            <g opacity="0.18" transform="translate(802,438)">
+              <ellipse cx="36" cy="42" rx="38" ry="13" fill="#C17B4E" transform="rotate(38 36 42)"/>
+              <ellipse cx="60" cy="60" rx="28" ry="10" fill="#D4936B" transform="rotate(55 60 60)"/>
+              <ellipse cx="18" cy="58" rx="22" ry="8" fill="#B86E42" transform="rotate(18 18 58)"/>
+            </g>
+            <!-- 右上金点 -->
+            <circle cx="854" cy="26" r="7" fill="#D4A853" opacity="0.5"/>
+            <circle cx="839" cy="38" r="4.5" fill="#D4A853" opacity="0.35"/>
+            <circle cx="862" cy="44" r="3" fill="#C4855A" opacity="0.28"/>
+
+            <!-- ══ HEADER ══ -->
+            <g clip-path="url(#cpHead)">
+              <rect x="16" y="16" width="848" height="62" rx="14" fill="url(#gHeader)" filter="url(#sh)"/>
+              <!-- 金色左竖条 -->
+              <rect x="16" y="16" width="6" height="62" fill="url(#gGold)" rx="3"/>
+              <text id="svtCompany" x="40" y="42" font-size="19" font-weight="800" fill="white" letter-spacing="0.5">星云科技</text>
+              <text x="124" y="42" font-size="12" fill="rgba(255,255,255,0.6)">SaaS · 企业数字化</text>
+              <text x="40" y="63" font-size="11.5" fill="rgba(255,255,255,0.78)">2025年第三季度经营全景分析</text>
+              <!-- 右侧徽章 -->
+              <rect x="614" y="28" width="232" height="33" rx="16.5" fill="url(#gGold)" filter="url(#shS)"/>
+              <text id="svtBadge" x="730" y="49" text-anchor="middle" font-size="13" font-weight="700" fill="#3D2B1F">✦  营收 4.2亿  ·  同比 +31%</text>
+            </g>
+
+            <!-- ══ CELL A：营收英雄 ══ -->
+            <g clip-path="url(#cpA)">
+              <rect x="16" y="90" width="192" height="206" rx="14" fill="url(#gHero)" filter="url(#sh)"/>
+              <!-- 同心圆光晕 -->
+              <circle cx="112" cy="183" r="80" fill="rgba(255,255,255,0.06)"/>
+              <circle cx="112" cy="183" r="58" fill="rgba(255,255,255,0.09)"/>
+              <circle cx="112" cy="183" r="38" fill="rgba(255,255,255,0.13)"/>
+              <!-- 顶部标签 -->
+              <rect x="50" y="100" width="124" height="22" rx="11" fill="rgba(255,255,255,0.2)"/>
+              <text x="112" y="115" text-anchor="middle" font-size="10.5" fill="white" letter-spacing="2">核 心 成 就</text>
+              <!-- 大数字 -->
+              <text id="svtRevenue" x="112" y="172" text-anchor="middle" font-size="46" font-weight="900" fill="white" letter-spacing="-1">4.2亿</text>
+              <text x="112" y="193" text-anchor="middle" font-size="12.5" fill="rgba(255,255,255,0.82)">总营收</text>
+              <!-- 金色增长徽章 -->
+              <rect x="56" y="238" width="112" height="30" rx="15" fill="url(#gGold)" filter="url(#shS)"/>
+              <text id="svtGrowth" x="112" y="258" text-anchor="middle" font-size="14" font-weight="800" fill="#3D2B1F">▲ 同比 +31%</text>
+              <!-- 装饰点 -->
+              <circle cx="34" cy="280" r="4" fill="rgba(255,255,255,0.15)"/>
+              <circle cx="48" cy="290" r="2.5" fill="rgba(255,255,255,0.1)"/>
+            </g>
+
+            <!-- ══ CELL B：三环健康指标 ══ -->
+            <g clip-path="url(#cpB)">
+              <rect x="220" y="90" width="376" height="206" rx="14" fill="white" filter="url(#sh)"/>
+              <text x="408" y="112" text-anchor="middle" font-size="12" font-weight="700" fill="#7A4E2D" letter-spacing="1">健 康 度 指 标</text>
+              <line x1="244" y1="120" x2="572" y2="120" stroke="#EAD8C8" stroke-width="1"/>
+
+              <!-- 圆1：留存率 93.2%  cx=302 -->
+              <!-- C=2π×47≈295.3  93.2%→275.2 → dasharray="275 295" -->
+              <circle cx="302" cy="187" r="47" fill="url(#rSage)"/>
+              <circle cx="302" cy="187" r="47" fill="none" stroke="#CCE2CA" stroke-width="7.5"/>
+              <circle cx="302" cy="187" r="47" fill="none" stroke="url(#gHero)" stroke-width="7.5"
+                stroke-dasharray="275 295" stroke-linecap="round" transform="rotate(-90 302 187)"/>
+              <text id="svtRetention" x="302" y="181" text-anchor="middle" font-size="21" font-weight="900" fill="#3E6E3B">93.2%</text>
+              <text x="302" y="197" text-anchor="middle" font-size="10" fill="#5C8A59" font-weight="600">客户留存率</text>
+              <text x="302" y="211" text-anchor="middle" font-size="9.5" fill="#8FAF8A">历史最高</text>
+              <text x="302" y="249" text-anchor="middle" font-size="10" fill="#7A8A78">较Q2 +1.4pp ↑</text>
+
+              <!-- 圆2：SaaS占比 60.3%  cx=408 -->
+              <!-- 60.3%→177.9 → dasharray="178 295" -->
+              <circle cx="408" cy="187" r="47" fill="url(#rBlue)"/>
+              <circle cx="408" cy="187" r="47" fill="none" stroke="#C4D8E8" stroke-width="7.5"/>
+              <circle cx="408" cy="187" r="47" fill="none" stroke="url(#gBlue)" stroke-width="7.5"
+                stroke-dasharray="178 295" stroke-linecap="round" transform="rotate(-90 408 187)"/>
+              <text id="svtSaasPct" x="408" y="181" text-anchor="middle" font-size="21" font-weight="900" fill="#4A7A9E">60.3%</text>
+              <text x="408" y="197" text-anchor="middle" font-size="10" fill="#6B8FAE" font-weight="600">SaaS 占比</text>
+              <text x="408" y="211" text-anchor="middle" font-size="9.5" fill="#8AAAC0">首次破 60%</text>
+              <text x="408" y="249" text-anchor="middle" font-size="10" fill="#7A8898">里程碑 ★</text>
+
+              <!-- 圆3：净利润率 15%  cx=514 -->
+              <!-- 15%→44.3 → dasharray="44 295" -->
+              <circle cx="514" cy="187" r="47" fill="url(#rTerra)"/>
+              <circle cx="514" cy="187" r="47" fill="none" stroke="#DECCB8" stroke-width="7.5"/>
+              <circle cx="514" cy="187" r="47" fill="none" stroke="url(#gTerra)" stroke-width="7.5"
+                stroke-dasharray="44 295" stroke-linecap="round" transform="rotate(-90 514 187)"/>
+              <text x="514" y="181" text-anchor="middle" font-size="21" font-weight="900" fill="#A05030">15.0%</text>
+              <text x="514" y="197" text-anchor="middle" font-size="10" fill="#C4855A" font-weight="600">净利润率</text>
+              <text x="514" y="211" text-anchor="middle" font-size="9.5" fill="#D4956A">经营利润</text>
+              <text x="514" y="249" text-anchor="middle" font-size="10" fill="#B08A78">较Q2 +2pp ↑</text>
+            </g>
+
+            <!-- ══ CELL C：业务构成 ══ -->
+            <!-- 内容区: x=624~848 (w=224) -->
+            <g clip-path="url(#cpC)">
+              <rect x="608" y="90" width="256" height="206" rx="14" fill="#F6EFE4" filter="url(#sh)"/>
+              <text x="736" y="111" text-anchor="middle" font-size="12" font-weight="700" fill="#7A4E2D" letter-spacing="1">业 务 构 成</text>
+              <line x1="626" y1="119" x2="846" y2="119" stroke="#DDD0C0" stroke-width="1"/>
+
+              <!-- SaaS 1.9亿  +47%   bar max=190px (=1.9/2.0×190) -->
+              <text x="626" y="137" font-size="11" fill="#3D2B1F" font-weight="600">SaaS 业务</text>
+              <rect x="626" y="141" width="190" height="9" rx="4.5" fill="#E4D4C0"/>
+              <rect x="626" y="141" width="180" height="9" rx="4.5" fill="url(#gHero)"/>
+              <text x="624" y="160" font-size="9.5" fill="#9E8878">1.9亿</text>
+              <text x="845" y="151" text-anchor="end" font-size="11.5" fill="#4A7B46" font-weight="700">+47%</text>
+
+              <!-- 硬件 0.99亿  −17%  bar=94px -->
+              <text x="626" y="175" font-size="11" fill="#3D2B1F" font-weight="600">硬件销售</text>
+              <rect x="626" y="179" width="190" height="9" rx="4.5" fill="#E4D4C0"/>
+              <rect x="626" y="179" width="94" height="9" rx="4.5" fill="url(#gTerra)"/>
+              <text x="624" y="198" font-size="9.5" fill="#9E8878">0.99亿</text>
+              <text x="845" y="189" text-anchor="end" font-size="11.5" fill="#C17B4E" font-weight="700">−17%</text>
+
+              <!-- 专业服务 0.99亿  +24%  bar=94px -->
+              <text x="626" y="213" font-size="11" fill="#3D2B1F" font-weight="600">专业服务</text>
+              <rect x="626" y="217" width="190" height="9" rx="4.5" fill="#E4D4C0"/>
+              <rect x="626" y="217" width="94" height="9" rx="4.5" fill="url(#gBlue)"/>
+              <text x="624" y="236" font-size="9.5" fill="#9E8878">0.99亿</text>
+              <text x="845" y="227" text-anchor="end" font-size="11.5" fill="#5A7EA0" font-weight="700">+24%</text>
+
+              <!-- 其他 0.35亿  −31%  bar=33px -->
+              <text x="626" y="251" font-size="11" fill="#3D2B1F" font-weight="600">其他</text>
+              <rect x="626" y="255" width="190" height="9" rx="4.5" fill="#E4D4C0"/>
+              <rect x="626" y="255" width="33" height="9" rx="4.5" fill="#BFB5A8"/>
+              <text x="624" y="274" font-size="9.5" fill="#9E8878">0.35亿</text>
+              <text x="845" y="265" text-anchor="end" font-size="11.5" fill="#9E8878" font-weight="700">−31%</text>
+            </g>
+
+            <!-- ══ CELL D：风险预警 ══ -->
+            <!-- 内容区: x=16~276, y=308~462 -->
+            <g clip-path="url(#cpD)">
+              <rect x="16" y="308" width="260" height="154" rx="14" fill="white" filter="url(#sh)"/>
+              <!-- 赭石左侧条 -->
+              <rect x="16" y="308" width="6" height="154" fill="url(#gTerra)" rx="3"/>
+              <!-- 警告三角 -->
+              <polygon points="48,323 36,345 60,345" fill="#E8A878" opacity="0.9"/>
+              <text x="48" y="339" text-anchor="middle" font-size="11" font-weight="900" fill="#7A3A14">!</text>
+              <text x="72" y="327" font-size="13" font-weight="800" fill="#B05030">风险预警</text>
+              <text x="72" y="342" font-size="10" fill="#C4855A">2 项需重点关注</text>
+              <line x1="30" y1="351" x2="268" y2="351" stroke="#F0E0D0" stroke-width="1"/>
+
+              <!-- 风险1 -->
+              <rect x="28" y="357" width="240" height="44" rx="8" fill="#FFF0E8"/>
+              <rect x="28" y="357" width="4" height="44" rx="2" fill="#C17B4E"/>
+              <text x="40" y="373" font-size="11.5" fill="#7A3A14" font-weight="700">华南区销售离职率</text>
+              <text x="40" y="390" font-size="10" fill="#A06040">Q3：18%  ·  超警戒阈值 8pp</text>
+              <text x="262" y="388" text-anchor="end" font-size="26" font-weight="900" fill="#C17B4E">18%</text>
+
+              <!-- 风险2 -->
+              <rect x="28" y="407" width="240" height="44" rx="8" fill="#FFFAF0"/>
+              <rect x="28" y="407" width="4" height="44" rx="2" fill="#D4A853"/>
+              <text x="40" y="423" font-size="11.5" fill="#7A4A14" font-weight="700">研发费用率偏高</text>
+              <text x="40" y="440" font-size="10" fill="#A07840">22.4%  ·  行业均值 19.2%</text>
+              <text x="262" y="439" text-anchor="end" font-size="22" font-weight="800" fill="#D4A853">22.4%</text>
+            </g>
+
+            <!-- ══ CELL E：企业版里程碑 ══ -->
+            <!-- 内容区: x=288~548, y=308~462 -->
+            <g clip-path="url(#cpE)">
+              <rect x="288" y="308" width="260" height="154" rx="14" fill="url(#gHero)" filter="url(#sh)"/>
+              <!-- 装饰圆 -->
+              <circle cx="418" cy="385" r="68" fill="rgba(255,255,255,0.07)"/>
+              <circle cx="418" cy="385" r="48" fill="rgba(255,255,255,0.10)"/>
+              <!-- 顶部标签 -->
+              <rect x="324" y="316" width="188" height="22" rx="11" fill="rgba(255,255,255,0.22)"/>
+              <text x="418" y="331" text-anchor="middle" font-size="10.5" fill="white" letter-spacing="2">企 业 版 里 程 碑</text>
+              <!-- 大增长数字 -->
+              <text x="418" y="390" text-anchor="middle" font-size="54" font-weight="900" fill="white" letter-spacing="-2">+68%</text>
+              <text x="418" y="412" text-anchor="middle" font-size="10.5" fill="rgba(255,255,255,0.82)">企业版新签合同同比增幅</text>
+              <!-- 徽章 -->
+              <rect x="324" y="424" width="188" height="28" rx="14" fill="rgba(255,255,255,0.24)"/>
+              <text x="418" y="443" text-anchor="middle" font-size="12" font-weight="700" fill="white">新签额首破 1 亿元</text>
+            </g>
+
+            <!-- ══ CELL F：Q4展望 ══ -->
+            <!-- 内容区: x=560~864, y=308~462 -->
+            <g clip-path="url(#cpF)">
+              <rect x="560" y="308" width="304" height="154" rx="14" fill="#EEF4FB" filter="url(#sh)"/>
+              <!-- 蓝色左侧条 -->
+              <rect x="560" y="308" width="6" height="154" fill="url(#gBlue)" rx="3"/>
+              <!-- 靶心图标 -->
+              <circle cx="594" cy="333" r="16" fill="url(#gBlue)" filter="url(#shS)"/>
+              <circle cx="594" cy="333" r="9" fill="none" stroke="white" stroke-width="1.8"/>
+              <circle cx="594" cy="333" r="4" fill="none" stroke="white" stroke-width="1.8"/>
+              <circle cx="594" cy="333" r="1.5" fill="white"/>
+              <text x="619" y="327" font-size="13" font-weight="800" fill="#4A7A9E">Q4 展望</text>
+              <text x="619" y="343" font-size="10.5" fill="#6B8FAE">中性目标营收</text>
+              <line x1="574" y1="352" x2="852" y2="352" stroke="#D0DDE8" stroke-width="1"/>
+              <!-- 大目标数字 -->
+              <text x="712" y="407" text-anchor="middle" font-size="52" font-weight="900" fill="#4A7A9E" letter-spacing="-1">5.1亿</text>
+              <text x="712" y="428" text-anchor="middle" font-size="11" fill="#6B8FAE">预期增长 +29%</text>
+              <!-- 行动 -->
+              <rect x="574" y="438" width="278" height="20" rx="10" fill="rgba(90,126,160,0.12)"/>
+              <text x="713" y="452" text-anchor="middle" font-size="10.5" fill="#4A7A9E">华南扩招 · AI助手11月上线 · 研发降本</text>
+            </g>
+
+            <!-- ══ 分隔虚线 ══ -->
+            <line x1="216" y1="96" x2="216" y2="290" stroke="#D8C8B4" stroke-width="1" stroke-dasharray="4,6"/>
+            <line x1="604" y1="96" x2="604" y2="290" stroke="#D8C8B4" stroke-width="1" stroke-dasharray="4,6"/>
+            <line x1="284" y1="314" x2="284" y2="456" stroke="#D8C8B4" stroke-width="1" stroke-dasharray="4,6"/>
+            <line x1="556" y1="314" x2="556" y2="456" stroke="#D8C8B4" stroke-width="1" stroke-dasharray="4,6"/>
+
+            <!-- ══ Footer ══ -->
+            <rect x="16" y="474" width="848" height="22" rx="11" fill="rgba(140,120,105,0.08)"/>
+            <text x="440" y="489" text-anchor="middle" font-size="10" fill="#8B7A6A" letter-spacing="0.3">
+              数据截至 2025年10月14日  ·  AI 基于文档内容自动生成
+            </text>
+          </svg>
+
+          <!-- ══ Layout 2: Hub-Spoke 枢纽视图（第2次生成时展示）══ -->
+          <svg id="sv2" viewBox="0 0 880 510" xmlns="http://www.w3.org/2000/svg"
+               style="width:100%;height:auto;display:none;"
+               font-family="'PingFang SC','Microsoft YaHei','Hiragino Sans GB',sans-serif">
+            <defs>
+              <linearGradient id="g2Bg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#EEF4FF"/><stop offset="100%" stop-color="#E2EEF8"/>
+              </linearGradient>
+              <linearGradient id="g2Head" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#1A3A6B"/><stop offset="100%" stop-color="#0D2444"/>
+              </linearGradient>
+              <linearGradient id="g2Hub" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#4DA6FF"/><stop offset="100%" stop-color="#007FFF"/>
+              </linearGradient>
+              <linearGradient id="g2Sage" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#6E9C6A"/><stop offset="100%" stop-color="#4A7B46"/>
+              </linearGradient>
+              <linearGradient id="g2Gold" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#D4A853"/><stop offset="100%" stop-color="#B8893C"/>
+              </linearGradient>
+              <linearGradient id="g2Terra" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#D4895C"/><stop offset="100%" stop-color="#B5693A"/>
+              </linearGradient>
+              <linearGradient id="g2Teal" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#5AABFF"/><stop offset="100%" stop-color="#2B88FF"/>
+              </linearGradient>
+              <filter id="g2sh"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#2A4070" flood-opacity="0.13"/></filter>
+              <filter id="g2shS"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#2A4070" flood-opacity="0.10"/></filter>
+              <pattern id="g2grid" width="22" height="22" patternUnits="userSpaceOnUse">
+                <path d="M 22 0 L 0 0 0 22" fill="none" stroke="#B8CCEE" stroke-width="0.6" opacity="0.35"/>
+              </pattern>
+              <!-- ClipPaths for each card and hub -->
+              <clipPath id="c2Head"><rect x="16" y="16" width="848" height="62" rx="14"/></clipPath>
+              <clipPath id="c2Hub"><circle cx="440" cy="285" r="82"/></clipPath>
+              <clipPath id="c2N1"><rect x="371" y="88" width="138" height="70" rx="12"/></clipPath>
+              <clipPath id="c2N2"><rect x="525" y="200" width="138" height="70" rx="12"/></clipPath>
+              <clipPath id="c2N3"><rect x="466" y="381" width="138" height="70" rx="12"/></clipPath>
+              <clipPath id="c2N4"><rect x="276" y="381" width="138" height="70" rx="12"/></clipPath>
+              <clipPath id="c2N5"><rect x="217" y="200" width="138" height="70" rx="12"/></clipPath>
+            </defs>
+
+            <!-- 背景 + 网格 -->
+            <rect width="880" height="510" fill="url(#g2Bg)" rx="10"/>
+            <rect width="880" height="510" fill="url(#g2grid)" rx="10"/>
+
+            <!-- 装饰圆环（结构感） -->
+            <circle cx="440" cy="285" r="220" fill="none" stroke="rgba(0,127,255,0.045)" stroke-width="1.2" stroke-dasharray="8,12"/>
+            <circle cx="440" cy="285" r="162" fill="none" stroke="rgba(0,127,255,0.07)" stroke-width="1" stroke-dasharray="5,8"/>
+            <!-- 角落装饰 -->
+            <circle cx="46" cy="96" r="50" fill="none" stroke="rgba(0,127,255,0.08)" stroke-width="1.5"/>
+            <circle cx="834" cy="415" r="60" fill="none" stroke="rgba(0,127,255,0.07)" stroke-width="1.5"/>
+
+            <!-- Header -->
+            <g clip-path="url(#c2Head)">
+              <rect x="16" y="16" width="848" height="62" rx="14" fill="url(#g2Head)" filter="url(#g2sh)"/>
+              <rect x="16" y="16" width="6" height="62" fill="url(#g2Gold)" rx="3"/>
+              <text x="40" y="42" font-size="19" font-weight="800" fill="white">星云科技</text>
+              <text x="124" y="42" font-size="12" fill="rgba(255,255,255,0.6)">SaaS · 企业数字化</text>
+              <text x="40" y="63" font-size="11.5" fill="rgba(255,255,255,0.78)">2025年第三季度 · 枢纽关系视图 · 第 2 次生成</text>
+              <rect x="598" y="28" width="248" height="33" rx="16.5" fill="url(#g2Gold)" filter="url(#g2shS)"/>
+              <text x="722" y="49" text-anchor="middle" font-size="13" font-weight="700" fill="#3D2B1F">✦  AI 重新生成  ·  换了不同布局</text>
+            </g>
+
+            <!-- 连接线（画在所有节点之下） -->
+            <!-- 到 N1 (up) -->
+            <line x1="440" y1="209" x2="440" y2="158" stroke="rgba(110,156,106,0.45)" stroke-width="2.5" stroke-dasharray="5,5" stroke-linecap="round"/>
+            <!-- 到 N2 (top-right) -->
+            <line x1="512" y1="262" x2="525" y2="235" stroke="rgba(212,168,83,0.55)" stroke-width="2.5" stroke-dasharray="5,5" stroke-linecap="round"/>
+            <!-- 到 N3 (bottom-right) -->
+            <line x1="485" y1="347" x2="535" y2="381" stroke="rgba(43,136,255,0.4)" stroke-width="2.5" stroke-dasharray="5,5" stroke-linecap="round"/>
+            <!-- 到 N4 (bottom-left) -->
+            <line x1="395" y1="347" x2="345" y2="381" stroke="rgba(212,89,60,0.4)" stroke-width="2.5" stroke-dasharray="5,5" stroke-linecap="round"/>
+            <!-- 到 N5 (top-left) -->
+            <line x1="368" y1="262" x2="355" y2="235" stroke="rgba(110,156,106,0.45)" stroke-width="2.5" stroke-dasharray="5,5" stroke-linecap="round"/>
+
+            <!-- 连接端点小圆 -->
+            <circle cx="440" cy="209" r="4.5" fill="#6E9C6A"/>
+            <circle cx="512" cy="262" r="4.5" fill="#D4A853"/>
+            <circle cx="485" cy="347" r="4.5" fill="#5AABFF"/>
+            <circle cx="395" cy="347" r="4.5" fill="#D4895C"/>
+            <circle cx="368" cy="262" r="4.5" fill="#6E9C6A"/>
+
+            <!-- Hub 中心 -->
+            <g clip-path="url(#c2Hub)">
+              <circle cx="440" cy="285" r="82" fill="url(#g2Hub)" filter="url(#g2sh)"/>
+              <circle cx="440" cy="285" r="72" fill="rgba(255,255,255,0.09)"/>
+              <circle cx="440" cy="285" r="55" fill="rgba(255,255,255,0.06)"/>
+            </g>
+            <text x="440" y="270" text-anchor="middle" font-size="42" font-weight="900" fill="white" letter-spacing="-1">4.2亿</text>
+            <text x="440" y="292" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.86)">总营收</text>
+            <text x="440" y="310" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.68)">同比 +31%</text>
+
+            <!-- N1: SaaS业务 (top)  x=371,y=88,w=138,h=70 -->
+            <g clip-path="url(#c2N1)">
+              <rect x="371" y="88" width="138" height="70" rx="12" fill="url(#g2Sage)" filter="url(#g2shS)"/>
+              <text x="440" y="108" text-anchor="middle" font-size="9.5" fill="rgba(255,255,255,0.75)" letter-spacing="1.5">SaaS 业务</text>
+              <text x="440" y="132" text-anchor="middle" font-size="28" font-weight="900" fill="white">+47%</text>
+              <text x="440" y="151" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.82)">营收 1.9亿</text>
+            </g>
+
+            <!-- N2: 企业版 (top-right)  x=525,y=200,w=138,h=70 -->
+            <g clip-path="url(#c2N2)">
+              <rect x="525" y="200" width="138" height="70" rx="12" fill="url(#g2Gold)" filter="url(#g2shS)"/>
+              <text x="594" y="220" text-anchor="middle" font-size="9.5" fill="rgba(61,43,31,0.65)" letter-spacing="1.5">企业版成就</text>
+              <text x="594" y="244" text-anchor="middle" font-size="28" font-weight="900" fill="#3D2B1F">+68%</text>
+              <text x="594" y="263" text-anchor="middle" font-size="10" fill="rgba(61,43,31,0.72)">新签合同破 1 亿</text>
+            </g>
+
+            <!-- N3: Q4展望 (bottom-right)  x=466,y=381,w=138,h=70 -->
+            <g clip-path="url(#c2N3)">
+              <rect x="466" y="381" width="138" height="70" rx="12" fill="url(#g2Teal)" filter="url(#g2shS)"/>
+              <text x="535" y="401" text-anchor="middle" font-size="9.5" fill="rgba(255,255,255,0.75)" letter-spacing="1.5">Q4 展望</text>
+              <text x="535" y="425" text-anchor="middle" font-size="28" font-weight="900" fill="white">5.1亿</text>
+              <text x="535" y="444" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.82)">目标 +29%</text>
+            </g>
+
+            <!-- N4: 风险预警 (bottom-left)  x=276,y=381,w=138,h=70 -->
+            <g clip-path="url(#c2N4)">
+              <rect x="276" y="381" width="138" height="70" rx="12" fill="url(#g2Terra)" filter="url(#g2shS)"/>
+              <text x="345" y="401" text-anchor="middle" font-size="9.5" fill="rgba(255,255,255,0.75)" letter-spacing="1">⚠ 风险预警</text>
+              <text x="345" y="421" text-anchor="middle" font-size="14" font-weight="800" fill="white">18% · 22.4%</text>
+              <text x="345" y="441" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.82)">离职率 · 研发费率</text>
+            </g>
+
+            <!-- N5: 客户健康 (top-left)  x=217,y=200,w=138,h=70 -->
+            <g clip-path="url(#c2N5)">
+              <rect x="217" y="200" width="138" height="70" rx="12" fill="url(#g2Sage)" filter="url(#g2shS)"/>
+              <text x="286" y="220" text-anchor="middle" font-size="9.5" fill="rgba(255,255,255,0.75)" letter-spacing="1.5">客户健康</text>
+              <text x="286" y="244" text-anchor="middle" font-size="28" font-weight="900" fill="white">93.2%</text>
+              <text x="286" y="263" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.82)">留存率 历史最高</text>
+            </g>
+
+            <!-- Footer -->
+            <rect x="16" y="476" width="848" height="22" rx="11" fill="rgba(42,64,112,0.07)"/>
+            <text x="440" y="491" text-anchor="middle" font-size="10" fill="#6B7A9E" letter-spacing="0.3">
+              hub-spoke 枢纽视图  ·  数据截至 2025年10月14日  ·  AI 重新生成
+            </text>
+          </svg>
+
+        </div><!-- /chart-wrap -->
+
+        <!-- AI摘要 -->
+        <div class="ai-summary">
+          📌 SaaS化转型成效显著，Q3整体超额达标；客户健康指标创历史峰值，企业版合同结构持续优化。华南人才流失为近期首要风险，建议本季度启动专项激励方案；AI文档助手Q4上线后预计带来约10%新增收入贡献。
+        </div>
+
+        <!-- 编辑面板（双 Tab） -->
+        <div class="edit-panel" id="editPanel">
+          <div class="edit-tabs">
+            <button class="edit-tab active" onclick="switchEditTab('text',this)">✏️ 编辑文字</button>
+            <button class="edit-tab" onclick="switchEditTab('style',this)">🎨 整体风格</button>
+          </div>
+          <!-- Tab 1：文字编辑 -->
+          <div id="editTabText">
+            <div class="edit-fields">
+              <div class="edit-field"><label>公司名称</label><input id="ef_company" type="text" value="星云科技" oninput="liveEditText('svtCompany',this.value)"/></div>
+              <div class="edit-field"><label>核心指标文案</label><input id="ef_badge" type="text" value="✦  营收 4.2亿  ·  同比 +31%" oninput="liveEditText('svtBadge',this.value)"/></div>
+              <div class="edit-field"><label>总营收</label><input id="ef_rev" type="text" value="4.2亿" oninput="liveEditText('svtRevenue',this.value)"/></div>
+              <div class="edit-field"><label>同比增长</label><input id="ef_growth" type="text" value="▲ 同比 +31%" oninput="liveEditText('svtGrowth',this.value)"/></div>
+              <div class="edit-field"><label>客户留存率</label><input id="ef_ret" type="text" value="93.2%" oninput="liveEditText('svtRetention',this.value)"/></div>
+              <div class="edit-field"><label>SaaS 占比</label><input id="ef_saas" type="text" value="60.3%" oninput="liveEditText('svtSaasPct',this.value)"/></div>
+            </div>
+          </div>
+          <!-- Tab 2：整体风格 -->
+          <div id="editTabStyle" style="display:none">
+            <div class="style-grid">
+              <div class="style-opt active" data-style="warm" onclick="applyStyle('warm',this)">
+                <div class="style-swatch" style="background:linear-gradient(90deg,#6E9C6A,#C4855A,#6B4E3D)"></div>
+                <div class="style-opt-name">莫兰迪暖系</div>
+                <div class="style-opt-desc">温润自然 · 质感商务</div>
+              </div>
+              <div class="style-opt" data-style="blue" onclick="applyStyle('blue',this)">
+                <div class="style-swatch" style="background:linear-gradient(90deg,#4DA6FF,#007FFF,#1A3A6B)"></div>
+                <div class="style-opt-name">钉钉商务蓝</div>
+                <div class="style-opt-desc">清爽专业 · 企业感</div>
+              </div>
+              <div class="style-opt" data-style="purple" onclick="applyStyle('purple',this)">
+                <div class="style-swatch" style="background:linear-gradient(90deg,#9370CC,#2D1A4D,#D4A853)"></div>
+                <div class="style-opt-name">暗夜紫金</div>
+                <div class="style-opt-desc">高端深邃 · 奢华感</div>
+              </div>
+              <div class="style-opt" data-style="slate" onclick="applyStyle('slate',this)">
+                <div class="style-swatch" style="background:linear-gradient(90deg,#607B8C,#3D4A5C,#8A9BAC)"></div>
+                <div class="style-opt-name">极简冷灰</div>
+                <div class="style-opt-desc">冷静克制 · 理性风</div>
+              </div>
+            </div>
+          </div>
+          <div class="edit-footer" style="margin-top:12px">
+            <button class="btn-edit" onclick="toggleEditPanel()">关闭</button>
+          </div>
+        </div>
+
+        <div class="card-toolbar">
+          <div class="toolbar-left">
+            <button class="tool-btn" onclick="toggleEditPanel()">✏️ 编辑</button>
+            <button class="tool-btn" onclick="downloadSVG()">⬇️ 导出</button>
+          </div>
+          <div class="toolbar-right">
+            <span class="gen-time">2025-10-14 09:42 AI 生成</span>
+            <button class="tool-btn close-btn" onclick="closeCard()">✕ 关闭</button>
+          </div>
+        </div>
+      </div><!-- /card-expanded -->
+    </div><!-- /info-card -->
+
+    <!-- 文档正文 -->
+    <div class="doc-body">
+      <h2>一、总体经营概况</h2>
+      <p>2025年第三季度，星云科技实现营业收入 <span class="hl">4.2亿元</span>，较上年同期增长 <strong>31.2%</strong>，超出年初制定的季度目标4.6个百分点。其中，核心SaaS业务收入达1.9亿元，同比增长47%，占总营收比例首次突破60%大关，达到 <span class="hl">60.3%</span>。</p>
+      <p>本季度毛利率为 <strong>62.8%</strong>，同比提升3.1个百分点。经营性净利润达 <strong>6,300万元</strong>，净利润率15.0%，同比提升约2个百分点。</p>
+
+      <h2>二、业务板块分析</h2>
+      <h3>2.1 SaaS订阅业务</h3>
+      <p>企业版新签合同总额突破 <span class="hl">1.02亿元</span>，较去年同期增长68%，付费企业客户总数达12,400家，新增1,847家。客户留存率达 <strong>93.2%</strong>，创公司历史新高，较上季度提升1.4pp。</p>
+
+      <h3>2.2 硬件销售业务</h3>
+      <p>受消费电子下行及供应链波动影响，硬件收入 <strong>0.99亿元</strong>，同比下降17%，低于预期目标8%。会议终端产品线市占率从21%下滑至17%。</p>
+
+      <h3>2.3 专业服务业务</h3>
+      <p>专业服务收入 <strong>0.99亿元</strong>，同比增长24%，本季度完成3个500万元以上标杆项目，交付满意度96%。</p>
+
+      <h2>三、关键指标汇总</h2>
+      <table class="dt">
+        <thead><tr><th>指标</th><th>Q3 实际</th><th>Q3 目标</th><th>同比</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><td>总营收</td><td><strong>4.20亿元</strong></td><td>4.02亿元</td><td class="up">+31.2%</td><td class="up">✓ 超额</td></tr>
+          <tr><td>SaaS占比</td><td><strong>60.3%</strong></td><td>57.0%</td><td class="up">+8.5pp</td><td class="up">✓ 超额</td></tr>
+          <tr><td>客户留存率</td><td><strong>93.2%</strong></td><td>91.0%</td><td class="up">+1.4pp</td><td class="up">✓ 超额</td></tr>
+          <tr><td>净利润率</td><td><strong>15.0%</strong></td><td>13.5%</td><td class="up">+2pp</td><td class="up">✓ 超额</td></tr>
+          <tr><td>研发费用率</td><td><strong>22.4%</strong></td><td>20.0%</td><td class="wn">+1.8pp</td><td class="wn">⚠ 偏高</td></tr>
+          <tr><td>华南销售离职率</td><td><strong>18%</strong></td><td>&lt;10%</td><td class="dn">+8pp</td><td class="dn">✗ 预警</td></tr>
+          <tr><td>硬件业务收入</td><td><strong>0.99亿元</strong></td><td>1.07亿元</td><td class="dn">−17%</td><td class="dn">✗ 未达标</td></tr>
+        </tbody>
+      </table>
+
+      <h2>四、风险与挑战</h2>
+      <h3>4.1 人才流失风险</h3>
+      <p>华南大区Q3销售离职率18%，超出健康阈值8pp。主要原因：竞争对手薪酬调整导致基础薪资吸引力下降；华南管理层Q2发生重大变动；本地化服务能力不足影响销售团队信心。若Q4延续该趋势，预计影响新签约2,000万元，并存在2-3个在谈大客户流失风险。</p>
+
+      <h3>4.2 研发效率问题</h3>
+      <p>Q3研发费用率22.4%，高于行业均值3.2pp。主因是基础平台架构升级及AI文档助手攻坚投入，预计Q4验收后回归20%以内。</p>
+
+      <h2>五、Q4展望与行动计划</h2>
+      <p>预计Q4营收区间 <span class="hl">4.9亿 ~ 5.3亿元</span>，中性目标 <strong>5.1亿元</strong>（同比+29%）。</p>
+      <ul>
+        <li><strong>华南专项：</strong>10月底前引进15名资深销售，推出留任激励，目标Q4离职率降至12%以下。</li>
+        <li><strong>硬件重组：</strong>聚焦大企业差异化策略，与SaaS套餐捆绑销售。</li>
+        <li><strong>AI助手上线：</strong>11月中旬发布，预计带来SaaS约10%增量。</li>
+        <li><strong>研发降本：</strong>引入模块化机制，Q4目标费率控制在21%以内。</li>
+      </ul>
+    </div>
+  </div><!-- /doc-panel -->
+
+  <!-- 右侧面板 -->
+  <div class="side-panel">
+    <div class="side-card">
+      <h4>目录</h4>
+      <div class="toc-li h2">一、总体经营概况</div>
+      <div class="toc-li h2">二、业务板块分析</div>
+      <div class="toc-li h3">2.1 SaaS订阅业务</div>
+      <div class="toc-li h3">2.2 硬件销售业务</div>
+      <div class="toc-li h3">2.3 专业服务业务</div>
+      <div class="toc-li h2">三、关键指标汇总</div>
+      <div class="toc-li h2">四、风险与挑战</div>
+      <div class="toc-li h2">五、Q4展望与计划</div>
+    </div>
+    <div class="side-card">
+      <h4>核心数据</h4>
+      <div class="stat-r"><span>总营收</span><span class="stat-v">4.2亿</span></div>
+      <div class="stat-r"><span>同比增长</span><span class="stat-v" style="color:var(--dt-green)">+31%</span></div>
+      <div class="stat-r"><span>SaaS占比</span><span class="stat-v">60.3%</span></div>
+      <div class="stat-r"><span>客户留存</span><span class="stat-v" style="color:var(--dt-green)">93.2%</span></div>
+      <div class="stat-r"><span>净利润率</span><span class="stat-v">15.0%</span></div>
+      <div class="stat-r"><span>Q4目标</span><span class="stat-v">5.1亿</span></div>
+    </div>
+  </div>
+</div><!-- /layout -->
+
+<!-- 流水线弹窗 -->
+<div class="pipeline-overlay" id="pipelineOverlay">
+  <div class="pipeline-box">
+    <div class="pipeline-title">✦ 正在生成信息图</div>
+    <div class="pipeline-subtitle" id="pSub">准备中...</div>
+    <div class="pipeline-steps">
+      <div class="p-step" id="ps1"><div class="p-icon">📝</div><div class="p-label">分析文档</div></div>
+      <div class="p-arrow">→</div>
+      <div class="p-step" id="ps2"><div class="p-icon">🔍</div><div class="p-label">提取数据</div></div>
+      <div class="p-arrow">→</div>
+      <div class="p-step" id="ps3"><div class="p-icon">🗺️</div><div class="p-label">规划布局</div></div>
+      <div class="p-arrow">→</div>
+      <div class="p-step" id="ps4"><div class="p-icon">🎨</div><div class="p-label">生成图形</div></div>
+    </div>
+    <div class="p-progress"><div class="p-bar" id="pBar"></div></div>
+    <div class="p-status" id="pStatus">AI 正在处理...</div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+/* ──────────────────────────
+   状态
+────────────────────────── */
+let isExpanded = false;
+let currentTheme = 'warm';
+let pendingTheme = 'warm';
+let layoutIdx = 0; // 当前展示的布局（0=bento, 1=hub-spoke）
+
+/* ──────────────────────────
+   布局切换
+────────────────────────── */
+function showLayout(idx) {
+  ['sv1','sv2'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('svg-enter');
+    if (i === idx) {
+      el.style.display = 'block';
+      void el.offsetWidth; // reflow 触发动画
+      el.classList.add('svg-enter');
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+/* ──────────────────────────
+   展开 / 收起
+────────────────────────── */
+function toggleCard() {
+  isExpanded = !isExpanded;
+  const exp = document.getElementById('cardExpanded');
+  exp.classList.toggle('show', isExpanded);
+  document.getElementById('toggleIcon').classList.toggle('rotated', isExpanded);
+  document.getElementById('toggleText').textContent = isExpanded ? '收起' : '展开看看';
+  document.getElementById('cardTitle').textContent = isExpanded ? '智能信息图' : '摘要';
+  document.getElementById('cardTeaser').style.display = isExpanded ? 'none' : '';
+  if (!isExpanded) document.getElementById('editPanel').classList.remove('show');
+}
+
+/* ──────────────────────────
+   关闭 / 恢复
+────────────────────────── */
+function closeCard() {
+  document.getElementById('infoCard').style.display = 'none';
+  document.getElementById('restoreBar').style.display = 'flex';
+  // 重置展开状态
+  isExpanded = false;
+  document.getElementById('cardCollapsed').style.display = 'block';
+  document.getElementById('cardExpanded').classList.remove('show');
+  document.getElementById('toggleIcon').classList.remove('rotated');
+  document.getElementById('toggleText').textContent = '展开看看';
+  document.getElementById('cardTitle').textContent = '摘要';
+  document.getElementById('cardTeaser').style.display = '';
+  document.getElementById('editPanel').classList.remove('show');
+}
+
+function restoreCard() {
+  document.getElementById('infoCard').style.display = 'block';
+  document.getElementById('restoreBar').style.display = 'none';
+}
+
+/* ──────────────────────────
+   编辑面板
+────────────────────────── */
+function toggleEditPanel() {
+  const panel = document.getElementById('editPanel');
+  const showing = panel.classList.toggle('show');
+  if (showing) {
+    // 打开时同步文字字段当前值
+    const syncMap = {
+      ef_company:'svtCompany', ef_badge:'svtBadge',
+      ef_rev:'svtRevenue', ef_growth:'svtGrowth',
+      ef_ret:'svtRetention', ef_saas:'svtSaasPct'
+    };
+    Object.entries(syncMap).forEach(([fid, sid]) => {
+      const svgEl = document.getElementById(sid);
+      const inp = document.getElementById(fid);
+      if (svgEl && inp) inp.value = svgEl.textContent;
+    });
+  }
+}
+
+function switchEditTab(tab, el) {
+  document.querySelectorAll('.edit-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('editTabText').style.display = tab === 'text' ? '' : 'none';
+  document.getElementById('editTabStyle').style.display = tab === 'style' ? '' : 'none';
+}
+
+function liveEditText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+const styleThemes = {
+  warm:   { hero:['#6E9C6A','#4A7B46'], header:['#6B4E3D','#4A3020'], gold:['#D4A853','#B8893C'], terra:['#D4895C','#B5693A'], bg:['#FAF3E8','#F0E4D0'] },
+  blue:   { hero:['#4DA6FF','#007FFF'], header:['#1A3A6B','#0D2444'], gold:['#007FFF','#0055CC'], terra:['#FF7D00','#CC5500'], bg:['#F0F8FF','#E0EEFA'] },
+  purple: { hero:['#9370CC','#6A4AAA'], header:['#2D1A4D','#1A0D2E'], gold:['#D4A853','#B8893C'], terra:['#CC6699','#AA4477'], bg:['#F5F0FA','#EAE0F4'] },
+  slate:  { hero:['#607B8C','#4A6070'], header:['#3D4A5C','#2A3545'], gold:['#8A9BAC','#6A7B8C'], terra:['#A0826C','#807060'], bg:['#F5F7F8','#E8EDEF'] }
+};
+
+function applyStyle(name, el) {
+  document.querySelectorAll('.style-opt').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  currentTheme = name;
+  const t = styleThemes[name];
+  function setGrad(id, c0, c1) {
+    const g = document.getElementById(id);
+    if (g) { g.children[0].setAttribute('stop-color',c0); g.children[1].setAttribute('stop-color',c1); }
+  }
+  setGrad('gHero',   t.hero[0],   t.hero[1]);
+  setGrad('gHeader', t.header[0], t.header[1]);
+  setGrad('gGold',   t.gold[0],   t.gold[1]);
+  setGrad('gTerra',  t.terra[0],  t.terra[1]);
+  setGrad('gBg',     t.bg[0],     t.bg[1]);
+  toast(`已切换风格：${el.querySelector('.style-opt-name').textContent}`);
+}
+
+// 兼容旧调用
+function applyThemeConfirm() { toggleEditPanel(); }
+
+/* ──────────────────────────
+   导出 SVG
+────────────────────────── */
+function downloadSVG() {
+  const svgId = layoutIdx === 0 ? 'sv1' : 'sv2';
+  const svg = document.getElementById(svgId);
+  const layoutName = layoutIdx === 0 ? 'bento' : 'hub-spoke';
+  const s = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([s], {type:'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `星云科技-Q3信息图-${layoutName}.svg`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('SVG 已下载');
+}
+
+/* ──────────────────────────
+   流水线动画
+────────────────────────── */
+/* 每次生成对应的脚本文案（两个布局交替） */
+const genPlans = [
+  {
+    toastMsg: '已切换 → Bento Grid · 暖系莫兰迪',
+    seq: [
+      {id:'ps1', prog:14, sub:'重新解析文档结构…', st:'识别业务板落与核心指标', delay:700},
+      {id:'ps1', prog:28, sub:'识别到 4 板块 · 7 指标 · 2 风险项', st:'文档分析完成', d:'ps1', delay:600},
+      {id:'ps2', prog:44, sub:'提取数据节点…', st:'营收 / 增长率 / 健康度 / 风险', delay:800},
+      {id:'ps2', prog:60, sub:'确定 6 个可视化模块', st:'数据提取完成', d:'ps2', delay:700},
+      {id:'ps3', prog:74, sub:'规划布局：bento-grid', st:'英雄区 / 三环 / 条形图 / 风险 / 里程碑 / 展望', delay:700},
+      {id:'ps3', prog:87, sub:'布局规划完成', st:'布局规划完成', d:'ps3', delay:500},
+      {id:'ps4', prog:96, sub:'渲染 SVG · 暖系莫兰迪配色…', st:'生成矢量图形与装饰元素', delay:700},
+      {id:'ps4', prog:100, sub:'生成完成！耗时 3.4s', st:'✓ 完成', d:'ps4', final:true, delay:400},
+    ]
+  },
+  {
+    toastMsg: '已切换 → Hub-Spoke · 枢纽视图',
+    seq: [
+      {id:'ps1', prog:12, sub:'换个角度重新分析文档…', st:'寻找核心枢纽与关联维度', delay:700},
+      {id:'ps1', prog:26, sub:'「营收 4.2亿」确定为信息核心', st:'文档分析完成', d:'ps1', delay:600},
+      {id:'ps2', prog:43, sub:'构建关系网络…', st:'映射 5 个关键维度', delay:800},
+      {id:'ps2', prog:58, sub:'枢纽节点 + 5 辐射卡片设计完成', st:'数据提取完成', d:'ps2', delay:700},
+      {id:'ps3', prog:74, sub:'规划布局：hub-spoke 枢纽发散', st:'中心节点 → 5 辐射关系', delay:700},
+      {id:'ps3', prog:86, sub:'布局规划完成', st:'布局规划完成', d:'ps3', delay:500},
+      {id:'ps4', prog:96, sub:'渲染 SVG · 商务蓝配色…', st:'生成枢纽视图', delay:700},
+      {id:'ps4', prog:100, sub:'第 2 次生成完成！布局已变化', st:'✓ 完成，耗时 2.9s', d:'ps4', final:true, delay:400},
+    ]
+  }
+];
+
+function triggerGen() {
+  const nextIdx = (layoutIdx + 1) % 2; // 切换到另一个布局
+  const plan = genPlans[nextIdx];
+
+  const ov = document.getElementById('pipelineOverlay');
+  ov.classList.add('show');
+  ['ps1','ps2','ps3','ps4'].forEach(id => {
+    document.getElementById(id).classList.remove('active','done');
+  });
+  document.getElementById('pBar').style.width = '0%';
+  document.getElementById('pStatus').className = 'p-status';
+
+  let delay = 300;
+  plan.seq.forEach(step => {
+    setTimeout(() => {
+      document.getElementById('pBar').style.width = step.prog + '%';
+      document.getElementById('pSub').textContent = step.sub;
+      document.getElementById('pStatus').textContent = step.st;
+      document.getElementById(step.id).classList.add('active');
+      if (step.d) document.getElementById(step.d).classList.replace('active','done');
+      if (step.final) {
+        document.getElementById('pStatus').classList.add('done');
+        setTimeout(() => {
+          ov.classList.remove('show');
+          layoutIdx = nextIdx;       // 正式切换
+          showLayout(layoutIdx);
+          if (!isExpanded) toggleCard();
+          toast(plan.toastMsg);
+        }, 1800);
+      }
+    }, delay);
+    delay += step.delay;
+  });
+}
+
+/* ──────────────────────────
+   Toast
+────────────────────────── */
+function toast(msg) {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+/* 点击遮罩关闭弹窗 */
+document.getElementById('pipelineOverlay').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('show');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能信息图卡片 Demo — 海报风格</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --dt-blue: #007FFF; --dt-blue-light: #E6F2FF;
+  --dt-gray: #F5F6F7; --dt-gray-mid: #E8EAED;
+  --dt-gray-text: #8C9099; --dt-text: #1F2329; --dt-text-sec: #4E5969;
+  --dt-green: #00B42A; --radius: 8px;
+}
+body { font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; background:#F0F2F5; min-height:100vh; color:var(--dt-text); }
+
+.topbar { height:52px; background:#fff; border-bottom:1px solid var(--dt-gray-mid); display:flex; align-items:center; padding:0 24px; gap:16px; position:sticky; top:0; z-index:100; }
+.logo { display:flex; align-items:center; gap:8px; font-weight:600; color:var(--dt-blue); font-size:16px; }
+.logo svg { width:28px; height:28px; }
+.doc-title-bar { flex:1; font-size:15px; font-weight:500; }
+.topbar-actions { display:flex; gap:8px; }
+.btn-sm { padding:5px 14px; border-radius:6px; font-size:13px; border:1px solid var(--dt-gray-mid); background:#fff; cursor:pointer; color:var(--dt-text); transition:all 0.15s; font-family:inherit; }
+.btn-sm:hover { background:var(--dt-gray); }
+.btn-sm.primary { background:var(--dt-blue); color:#fff; border-color:var(--dt-blue); }
+.btn-sm.primary:hover { background:#0066CC; }
+
+.layout { display:flex; max-width:1200px; margin:0 auto; gap:24px; padding:32px 24px; }
+.doc-panel { flex:1; min-width:0; background:#fff; border-radius:var(--radius); box-shadow:0 1px 4px rgba(0,0,0,0.06); overflow:hidden; }
+.doc-meta { padding:32px 48px 16px; border-bottom:1px solid var(--dt-gray-mid); }
+.doc-meta h1 { font-size:26px; font-weight:700; line-height:1.4; margin-bottom:12px; }
+.doc-meta-row { display:flex; gap:16px; align-items:center; font-size:13px; color:var(--dt-gray-text); }
+.avatar { width:22px; height:22px; border-radius:50%; background:#6B5B95; color:#fff; font-size:11px; display:inline-flex; align-items:center; justify-content:center; font-weight:600; }
+
+.restore-bar { margin:12px 48px; padding:10px 16px; background:#F5F6F7; border-radius:8px; border:1px dashed #C8CACF; display:none; align-items:center; gap:12px; font-size:13px; color:var(--dt-gray-text); }
+.restore-bar button { margin-left:auto; padding:4px 12px; border-radius:6px; border:1px solid var(--dt-blue); background:#fff; color:var(--dt-blue); font-size:12px; cursor:pointer; font-family:inherit; }
+.restore-bar button:hover { background:var(--dt-blue-light); }
+
+.info-card { margin:16px 48px; border-radius:var(--radius); border:1.5px solid #6B5B95; background:linear-gradient(135deg,#F8F5FF,#EDE8F8); overflow:hidden; }
+.card-header { display:flex; align-items:center; padding:10px 14px; gap:8px; cursor:pointer; user-select:none; }
+.card-header:hover { background:rgba(107,91,149,0.04); }
+.ai-badge { display:inline-flex; align-items:center; background:#6B5B95; color:#fff; font-size:11px; font-weight:700; padding:2px 7px; border-radius:4px; letter-spacing:0.5px; }
+.card-title { font-size:13px; font-weight:600; color:#6B5B95; flex:1; }
+.card-tag { font-size:11px; color:var(--dt-gray-text); background:var(--dt-gray); padding:2px 8px; border-radius:10px; }
+.toggle-btn { display:flex; align-items:center; gap:4px; font-size:12px; color:#6B5B95; background:none; border:none; cursor:pointer; padding:4px 8px; border-radius:4px; font-family:inherit; }
+.toggle-btn:hover { background:rgba(107,91,149,0.1); }
+.toggle-icon { transition:transform 0.3s; display:inline-block; }
+.toggle-icon.open { transform:rotate(180deg); }
+.card-actions { display:flex; gap:6px; }
+.act-btn { background:none; border:1px solid rgba(107,91,149,0.3); color:#6B5B95; font-size:12px; padding:3px 10px; border-radius:4px; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+.act-btn:hover { background:rgba(107,91,149,0.1); }
+
+.card-body { overflow:hidden; max-height:0; transition:max-height 0.4s ease; }
+.card-body.open { max-height:800px; }
+
+.card-summary { padding:12px 14px; border-top:1px solid rgba(107,91,149,0.15); }
+.summary-text { font-size:13px; line-height:1.8; color:var(--dt-text-sec); }
+.summary-text strong { color:var(--dt-text); }
+
+.card-infographic { padding:0 14px 14px; }
+.chart-wrap { background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(107,91,149,0.12); }
+.chart-wrap svg { display:block; width:100%; height:auto; }
+
+.card-toolbar { display:flex; justify-content:space-between; align-items:center; padding:8px 14px; border-top:1px solid rgba(107,91,149,0.12); }
+.toolbar-left { display:flex; gap:8px; }
+.toolbar-right { display:flex; align-items:center; gap:12px; }
+.tool-btn { background:none; border:1px solid var(--dt-gray-mid); color:var(--dt-text-sec); font-size:12px; padding:4px 10px; border-radius:4px; cursor:pointer; font-family:inherit; transition:all 0.15s; }
+.tool-btn:hover { background:var(--dt-gray); border-color:#C8CACF; }
+.gen-time { font-size:11px; color:var(--dt-gray-text); }
+
+.doc-body { padding:24px 48px 48px; }
+.doc-body p { font-size:15px; line-height:1.9; color:var(--dt-text); margin-bottom:16px; }
+.doc-body blockquote { border-left:3px solid #6B5B95; padding:10px 16px; margin:20px 0; background:#F8F5FF; border-radius:0 6px 6px 0; font-style:italic; color:#6B5B95; font-size:14px; }
+.doc-body h2 { font-size:18px; font-weight:700; margin:28px 0 12px; }
+.doc-body h3 { font-size:15px; font-weight:600; margin:20px 0 8px; color:#6B5B95; }
+.doc-body ul { padding-left:20px; margin-bottom:16px; }
+.doc-body li { font-size:15px; line-height:1.9; color:var(--dt-text); }
+.highlight { background:linear-gradient(180deg,transparent 60%,rgba(107,91,149,0.2) 60%); }
+
+/* 侧边栏 */
+.side-panel { width:280px; flex-shrink:0; display:flex; flex-direction:column; gap:16px; }
+.side-card { background:#fff; border-radius:var(--radius); box-shadow:0 1px 4px rgba(0,0,0,0.06); padding:16px; }
+.side-card h4 { font-size:13px; font-weight:600; color:var(--dt-text-sec); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+.tag-cloud { display:flex; flex-wrap:wrap; gap:6px; }
+.tag { font-size:12px; padding:4px 10px; border-radius:12px; cursor:default; }
+.tag.lg { font-size:14px; padding:5px 12px; font-weight:600; }
+.tag.md { font-size:13px; }
+.tag.sm { font-size:11px; opacity:0.8; }
+.tag-purple { background:#EDE8F8; color:#6B5B95; }
+.tag-olive { background:#EDF3E8; color:#4A7C59; }
+.tag-rust { background:#FAF0E6; color:#9B5B30; }
+.tag-blue { background:#E6F0FA; color:#2B6CB0; }
+
+.gen-panel { background:#fff; border-radius:var(--radius); box-shadow:0 1px 4px rgba(0,0,0,0.06); padding:16px; }
+.gen-panel h4 { font-size:13px; font-weight:600; color:var(--dt-text-sec); margin-bottom:12px; }
+.layout-opt { display:flex; flex-direction:column; gap:8px; }
+.layout-item { padding:10px 12px; border-radius:6px; border:1.5px solid var(--dt-gray-mid); cursor:pointer; transition:all 0.15s; }
+.layout-item.active { border-color:#6B5B95; background:#F8F5FF; }
+.layout-item:hover:not(.active) { border-color:#C8CACF; background:var(--dt-gray); }
+.layout-item-name { font-size:13px; font-weight:600; color:var(--dt-text); }
+.layout-item-desc { font-size:11px; color:var(--dt-gray-text); margin-top:2px; }
+
+/* 编辑主题面板 */
+.edit-panel { margin:0 14px 12px; padding:14px; background:#F8F5FF; border-radius:8px; border:1px solid rgba(107,91,149,0.2); display:none; }
+.edit-panel.open { display:block; }
+.edit-panel h5 { font-size:12px; font-weight:600; color:#6B5B95; margin-bottom:10px; }
+.theme-opts { display:flex; gap:8px; flex-wrap:wrap; }
+.theme-dot { width:24px; height:24px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:all 0.15s; }
+.theme-dot.active, .theme-dot:hover { border-color:#333; transform:scale(1.15); }
+.edit-actions { display:flex; gap:8px; margin-top:12px; }
+.edit-btn { flex:1; padding:6px; border-radius:6px; font-size:12px; font-family:inherit; cursor:pointer; border:1px solid var(--dt-gray-mid); background:#fff; color:var(--dt-text-sec); }
+.edit-btn.apply { background:#6B5B95; color:#fff; border-color:#6B5B95; }
+.edit-btn.apply:hover { background:#5a4a7e; }
+
+/* 流水线动画 */
+.pipeline-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; z-index:999; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+.pipeline-overlay.show { opacity:1; pointer-events:all; }
+.pipeline-box { background:#fff; border-radius:12px; padding:28px 32px; min-width:380px; box-shadow:0 8px 32px rgba(0,0,0,0.15); }
+.pipeline-box h3 { font-size:15px; font-weight:700; margin-bottom:20px; color:var(--dt-text); }
+.p-steps { display:flex; flex-direction:column; gap:10px; }
+.p-step { display:flex; align-items:center; gap:12px; font-size:13px; color:var(--dt-gray-text); }
+.p-step.active { color:var(--dt-text); }
+.p-step.done { color:var(--dt-green); }
+.p-dot { width:8px; height:8px; border-radius:50%; background:var(--dt-gray-mid); flex-shrink:0; }
+.p-step.active .p-dot { background:#6B5B95; animation:pulse 0.8s infinite; }
+.p-step.done .p-dot { background:var(--dt-green); }
+#pStatus { margin-top:18px; font-size:12px; color:var(--dt-gray-text); }
+#pStatus.done { color:var(--dt-green); font-weight:600; }
+@keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.5);opacity:0.6} }
+
+/* SVG 进入动画 */
+@keyframes svgIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.svg-enter { animation:svgIn 0.45s ease forwards; }
+
+/* ── 收起 / 展开态 header 元素 ── */
+.card-teaser { flex:1; font-size:12.5px; color:var(--dt-text-sec); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.card-teaser strong { color:#6B5B95; }
+
+/* ── 编辑面板双 Tab ── */
+.edit-tabs { display:flex; border-bottom:1px solid var(--dt-gray-mid); margin-bottom:12px; }
+.edit-tab { padding:7px 16px; font-size:12px; border:none; background:none; cursor:pointer; font-family:inherit; color:var(--dt-gray-text); border-bottom:2px solid transparent; margin-bottom:-1px; transition:all 0.15s; }
+.edit-tab.active { color:#6B5B95; border-bottom-color:#6B5B95; font-weight:600; }
+.edit-fields { display:flex; flex-direction:column; gap:8px; }
+.edit-field { display:flex; flex-direction:column; gap:3px; }
+.edit-field label { font-size:11px; color:var(--dt-gray-text); font-weight:600; letter-spacing:0.3px; }
+.edit-field input { padding:6px 10px; border-radius:5px; border:1px solid var(--dt-gray-mid); font-size:12.5px; font-family:inherit; outline:none; color:var(--dt-text); }
+.edit-field input:focus { border-color:#6B5B95; box-shadow:0 0 0 2px rgba(107,91,149,0.12); }
+.style-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.style-opt { padding:10px 12px; border-radius:8px; border:1.5px solid var(--dt-gray-mid); cursor:pointer; transition:all 0.15s; }
+.style-opt.active { border-color:#6B5B95; background:#F8F5FF; }
+.style-opt:hover:not(.active) { border-color:#C8CACF; background:var(--dt-gray); }
+.style-opt-name { font-size:12px; font-weight:600; color:var(--dt-text); }
+.style-opt-desc { font-size:10px; color:var(--dt-gray-text); margin-top:2px; }
+.style-swatch { width:100%; height:5px; border-radius:3px; margin-bottom:7px; }
+
+/* 增大展开最大高度 */
+.card-body.open { max-height:1200px; }
+
+/* Toast */
+.toast { position:fixed; bottom:32px; left:50%; transform:translateX(-50%) translateY(20px); background:#1F2329; color:#fff; padding:8px 20px; border-radius:20px; font-size:13px; opacity:0; transition:all 0.3s; pointer-events:none; z-index:9999; white-space:nowrap; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#007FFF"/><path d="M7 14h14M14 7v14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
+    钉钉文档
+  </div>
+  <div class="doc-title-bar">深度工作：注意力时代的核心竞争力</div>
+  <div class="topbar-actions">
+    <button class="btn-sm" onclick="toast('已复制分享链接')">分享</button>
+    <button class="btn-sm" onclick="downloadSVG()">导出</button>
+    <button class="btn-sm primary" onclick="triggerGen()">✨ 重新生成信息图</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- 主文档区 -->
+  <div class="doc-panel">
+    <div class="doc-meta">
+      <h1>深度工作：注意力时代的核心竞争力</h1>
+      <div class="doc-meta-row">
+        <div class="avatar">刘</div>
+        <span>刘思远</span>
+        <span>·</span>
+        <span>2026-02-20 更新</span>
+        <span>·</span>
+        <span>阅读约 8 分钟</span>
+      </div>
+    </div>
+
+    <!-- 信息图恢复条 -->
+    <div class="restore-bar" id="restoreBar">
+      <span>📌 信息图已收起</span>
+      <button onclick="restoreCard()">重新展开</button>
+    </div>
+
+    <!-- AI 信息图卡片 -->
+    <div class="info-card" id="infoCard">
+      <div class="card-header" onclick="toggleCard()">
+        <span class="ai-badge">AI</span>
+        <span class="card-title" id="cardTitle">摘要</span>
+        <span class="card-teaser" id="cardTeaser">🧠 <strong>4个核心概念</strong> · 专注即稀缺，深度工作是竞争力</span>
+        <button class="toggle-btn">
+          <span id="toggleText">展开看看</span>
+          <span class="toggle-icon" id="toggleIcon">▾</span>
+        </button>
+      </div>
+
+      <div class="card-body" id="cardBody">
+
+        <!-- 编辑面板（双 Tab，默认隐藏） -->
+        <div class="edit-panel" id="editPanel">
+          <div class="edit-tabs">
+            <button class="edit-tab active" onclick="switchEditTab('text',this)">✏️ 编辑文字</button>
+            <button class="edit-tab" onclick="switchEditTab('style',this)">🎨 整体风格</button>
+          </div>
+          <!-- Tab 1：文字编辑 -->
+          <div id="editTabText">
+            <div class="edit-fields">
+              <div class="edit-field"><label>主标题</label><input id="pef_title" type="text" value="深度工作" oninput="liveEditText('pvtTitle',this.value)"/></div>
+              <div class="edit-field"><label>核心金句（第1行）</label><input id="pef_q1" type="text" value="在注意力被稀释的时代，" oninput="liveEditText('pvtQuote1',this.value)"/></div>
+              <div class="edit-field"><label>核心金句（第2行）</label><input id="pef_q2" type="text" value="专注本身就是一种反叛。" oninput="liveEditText('pvtQuote2',this.value)"/></div>
+              <div class="edit-field"><label>数据①（日均深度专注）</label><input id="pef_d1" type="text" value="4h" oninput="liveEditText('pvtStat1',this.value)"/></div>
+              <div class="edit-field"><label>数据②（产出倍数）</label><input id="pef_d2" type="text" value="2.5×" oninput="liveEditText('pvtStat2',this.value)"/></div>
+              <div class="edit-field"><label>数据③（恢复专注耗时）</label><input id="pef_d3" type="text" value="23m" oninput="liveEditText('pvtStat3',this.value)"/></div>
+            </div>
+          </div>
+          <!-- Tab 2：整体风格 -->
+          <div id="editTabStyle" style="display:none">
+            <div class="style-grid">
+              <div class="style-opt active" data-style="morandi" onclick="applyPosterStyle('morandi',this)">
+                <div class="style-swatch" style="background:linear-gradient(90deg,#2D1B4E,#6B5B95,#F5EFE0)"></div>
+                <div class="style-opt-name">晨暮紫</div>
+                <div class="style-opt-desc">Morandi · 温雅质感</div>
+              </div>
+              <div class="style-opt" data-style="forest" onclick="applyPosterStyle('forest',this)">
+                <div class="style-swatch" style="background:linear-gradient(90deg,#1A3C28,#4A7C59,#F0F7EC)"></div>
+                <div class="style-opt-name">苔藓绿</div>
+                <div class="style-opt-desc">自然生长 · 清幽感</div>
+              </div>
+              <div class="style-opt" data-style="amber" onclick="applyPosterStyle('amber',this)">
+                <div class="style-swatch" style="background:linear-gradient(90deg,#4A2A10,#9B5B30,#FAF0E6)"></div>
+                <div class="style-opt-name">琥珀棕</div>
+                <div class="style-opt-desc">暖意沉稳 · 书卷气</div>
+              </div>
+              <div class="style-opt" data-style="ocean" onclick="applyPosterStyle('ocean',this)">
+                <div class="style-swatch" style="background:linear-gradient(90deg,#0D3A6A,#2B6CB0,#E6F0FA)"></div>
+                <div class="style-opt-name">宝石蓝</div>
+                <div class="style-opt-desc">冷静专注 · 科技感</div>
+              </div>
+            </div>
+          </div>
+          <div class="edit-actions" style="margin-top:12px">
+            <button class="edit-btn" onclick="toggleEditPanel()">关闭</button>
+          </div>
+        </div>
+
+        <!-- 信息图区（在前） -->
+        <div class="card-infographic">
+          <div class="chart-wrap">
+
+            <!-- ── 布局 A：杂志海报（密集模块）── -->
+            <svg id="sv1" viewBox="0 0 880 540" xmlns="http://www.w3.org/2000/svg" style="display:block">
+              <defs>
+                <linearGradient id="gHeroPoster" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#2D1B4E"/>
+                  <stop offset="100%" stop-color="#6B5B95"/>
+                </linearGradient>
+                <linearGradient id="gAccentPoster" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#9B7FC7"/>
+                  <stop offset="100%" stop-color="#C4A8E8"/>
+                </linearGradient>
+                <linearGradient id="gWarmPoster" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#F5EFE0"/>
+                  <stop offset="100%" stop-color="#EDE8F8"/>
+                </linearGradient>
+                <linearGradient id="gGreenPoster" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#4A7C59"/>
+                  <stop offset="100%" stop-color="#2E5C3C"/>
+                </linearGradient>
+                <!-- clipPaths -->
+                <clipPath id="cpHero"><rect x="0" y="0" width="300" height="540"/></clipPath>
+                <clipPath id="cpQA"><rect x="308" y="8" width="364" height="160"/></clipPath>
+                <clipPath id="cpQB"><rect x="308" y="176" width="364" height="110"/></clipPath>
+                <clipPath id="cpKw"><rect x="308" y="294" width="364" height="100"/></clipPath>
+                <clipPath id="cpPath"><rect x="308" y="402" width="364" height="130"/></clipPath>
+                <clipPath id="cpStat"><rect x="680" y="8" width="192" height="524"/></clipPath>
+                <filter id="fShadow">
+                  <feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.12"/>
+                </filter>
+              </defs>
+
+              <!-- 背景 -->
+              <rect width="880" height="540" fill="#F5EFE0"/>
+              <!-- 装饰性底纹 -->
+              <rect x="0" y="0" width="880" height="540" fill="url(#gWarmPoster)" opacity="0.5"/>
+
+              <!-- ── 左栏：标题海报区 ── -->
+              <g clip-path="url(#cpHero)">
+                <rect x="0" y="0" width="300" height="540" fill="url(#gHeroPoster)"/>
+                <!-- 装饰圆 -->
+                <circle cx="20" cy="490" r="140" fill="rgba(255,255,255,0.04)"/>
+                <circle cx="280" cy="60" r="80" fill="rgba(255,255,255,0.06)"/>
+                <!-- 标题 -->
+                <text x="28" y="72" fill="#C4A8E8" font-size="11" font-family="PingFang SC,sans-serif" font-weight="600" letter-spacing="3">DEEP WORK</text>
+                <text id="pvtTitle" x="28" y="115" fill="#fff" font-size="32" font-family="PingFang SC,sans-serif" font-weight="700" letter-spacing="-0.5">深度工作</text>
+                <text x="28" y="148" fill="rgba(255,255,255,0.8)" font-size="14" font-family="PingFang SC,sans-serif">注意力时代的核心竞争力</text>
+                <!-- 分隔线 -->
+                <line x1="28" y1="168" x2="272" y2="168" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                <!-- 核心定义引用 -->
+                <text x="28" y="198" fill="rgba(255,255,255,0.7)" font-size="11" font-family="PingFang SC,sans-serif">核心定义</text>
+                <rect x="28" y="208" width="3" height="68" fill="#C4A8E8" rx="1.5"/>
+                <text x="40" y="224" fill="#fff" font-size="12.5" font-family="PingFang SC,sans-serif" font-weight="500">在无干扰状态下专注</text>
+                <text x="40" y="242" fill="#fff" font-size="12.5" font-family="PingFang SC,sans-serif" font-weight="500">于高认知需求任务，</text>
+                <text x="40" y="260" fill="#fff" font-size="12.5" font-family="PingFang SC,sans-serif" font-weight="500">将认知能力推至极限，</text>
+                <text x="40" y="278" fill="rgba(255,255,255,0.85)" font-size="12.5" font-family="PingFang SC,sans-serif">创造新价值与提升技能。</text>
+                <!-- 对立词 -->
+                <rect x="28" y="304" width="244" height="44" rx="6" fill="rgba(255,255,255,0.1)"/>
+                <text x="68" y="321" fill="rgba(255,255,255,0.9)" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">深度工作</text>
+                <text x="150" y="321" fill="#C4A8E8" font-size="13" font-family="PingFang SC,sans-serif" text-anchor="middle">⇌</text>
+                <text x="232" y="321" fill="rgba(255,255,255,0.55)" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">浮浅工作</text>
+                <text x="68" y="337" fill="rgba(255,255,255,0.6)" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">稀缺·高价值</text>
+                <text x="232" y="337" fill="rgba(255,255,255,0.4)" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">普遍·可替代</text>
+                <!-- 关键词气泡 -->
+                <text x="28" y="378" fill="rgba(255,255,255,0.5)" font-size="10" font-family="PingFang SC,sans-serif">核心概念</text>
+                <rect x="28" y="387" width="68" height="22" rx="11" fill="rgba(196,168,232,0.25)"/>
+                <text x="62" y="403" fill="#C4A8E8" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">注意力残留</text>
+                <rect x="104" y="387" width="56" height="22" rx="11" fill="rgba(255,255,255,0.1)"/>
+                <text x="132" y="403" fill="rgba(255,255,255,0.8)" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">心流状态</text>
+                <rect x="168" y="387" width="56" height="22" rx="11" fill="rgba(255,255,255,0.08)"/>
+                <text x="196" y="403" fill="rgba(255,255,255,0.7)" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">刻意练习</text>
+                <rect x="28" y="418" width="68" height="22" rx="11" fill="rgba(255,255,255,0.08)"/>
+                <text x="62" y="434" fill="rgba(255,255,255,0.65)" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">认知带宽</text>
+                <rect x="104" y="418" width="80" height="22" rx="11" fill="rgba(255,255,255,0.06)"/>
+                <text x="144" y="434" fill="rgba(255,255,255,0.55)" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">数字极简主义</text>
+                <!-- 作者信息 -->
+                <text x="28" y="500" fill="rgba(255,255,255,0.35)" font-size="10" font-family="PingFang SC,sans-serif">卡尔·纽波特 / Cal Newport</text>
+                <text x="28" y="516" fill="rgba(255,255,255,0.25)" font-size="9" font-family="PingFang SC,sans-serif">Deep Work, 2016</text>
+              </g>
+
+              <!-- ── 分割线 ── -->
+              <line x1="300" y1="0" x2="300" y2="540" stroke="#D8D0EC" stroke-width="1"/>
+              <line x1="672" y1="0" x2="672" y2="540" stroke="#D8D0EC" stroke-width="1"/>
+
+              <!-- ── 中栏：核心内容区 ── -->
+
+              <!-- 金句卡片 A -->
+              <g clip-path="url(#cpQA)">
+                <rect x="308" y="8" width="364" height="160" fill="transparent"/>
+                <!-- 标题 -->
+                <text x="328" y="36" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700" letter-spacing="2">核心金句</text>
+                <!-- 引号装饰 -->
+                <text x="322" y="80" fill="#C4A8E8" font-size="42" font-family="Georgia,serif" opacity="0.5">"</text>
+                <rect x="328" y="50" width="336" height="108" rx="8" fill="rgba(107,91,149,0.06)"/>
+                <text id="pvtQuote1" x="348" y="75" fill="#2D1B4E" font-size="13.5" font-family="PingFang SC,sans-serif" font-weight="600">在注意力被稀释的时代，</text>
+                <text id="pvtQuote2" x="348" y="95" fill="#2D1B4E" font-size="13.5" font-family="PingFang SC,sans-serif" font-weight="600">专注本身就是一种反叛。</text>
+                <text x="348" y="118" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif">深度工作者以稀缺换取竞争优势，以高价值</text>
+                <text x="348" y="136" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif">产出赢得时代红利，而非被碎片化信息所淹没。</text>
+                <text x="616" y="150" fill="#9B7FC7" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="end">— 深度工作核心论断</text>
+              </g>
+
+              <!-- 金句卡片 B / 注意力残留 -->
+              <g clip-path="url(#cpQB)">
+                <line x1="328" y1="176" x2="636" y2="176" stroke="#E8E0F4" stroke-width="1"/>
+                <rect x="328" y="186" width="158" height="92" rx="8" fill="rgba(155,127,199,0.1)" filter="url(#fShadow)"/>
+                <text x="348" y="207" fill="#6B5B95" font-size="10" font-family="PingFang SC,sans-serif" font-weight="700">注意力残留</text>
+                <text x="348" y="224" fill="#4A3870" font-size="11" font-family="PingFang SC,sans-serif">切换任务后，旧任</text>
+                <text x="348" y="240" fill="#4A3870" font-size="11" font-family="PingFang SC,sans-serif">务的思维碎片会在</text>
+                <text x="348" y="256" fill="#4A3870" font-size="11" font-family="PingFang SC,sans-serif">新任务中残留 20 分钟</text>
+                <text x="348" y="270" fill="#9B7FC7" font-size="10" font-family="PingFang SC,sans-serif">Sophie Leroy, 2009</text>
+
+                <rect x="498" y="186" width="166" height="92" rx="8" fill="rgba(74,124,89,0.08)" filter="url(#fShadow)"/>
+                <text x="516" y="207" fill="#4A7C59" font-size="10" font-family="PingFang SC,sans-serif" font-weight="700">为何深度工作稀缺</text>
+                <text x="516" y="224" fill="#2E4A38" font-size="11" font-family="PingFang SC,sans-serif">便利性偏见——选择</text>
+                <text x="516" y="240" fill="#2E4A38" font-size="11" font-family="PingFang SC,sans-serif">最容易量化的行为，</text>
+                <text x="516" y="256" fill="#2E4A38" font-size="11" font-family="PingFang SC,sans-serif">而非最有价值的工作</text>
+                <text x="516" y="270" fill="#7AAD8C" font-size="10" font-family="PingFang SC,sans-serif">深度缺席的结构原因</text>
+              </g>
+
+              <!-- 四种策略 关键词云 -->
+              <g clip-path="url(#cpKw)">
+                <line x1="328" y1="294" x2="636" y2="294" stroke="#E8E0F4" stroke-width="1"/>
+                <text x="328" y="316" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700" letter-spacing="1">四种深度工作策略</text>
+                <!-- 策略标签 -->
+                <rect x="328" y="324" width="72" height="24" rx="12" fill="#6B5B95"/>
+                <text x="364" y="341" fill="#fff" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">隐士式</text>
+                <rect x="408" y="324" width="72" height="24" rx="12" fill="rgba(107,91,149,0.15)"/>
+                <text x="444" y="341" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">双峰式</text>
+                <rect x="488" y="324" width="72" height="24" rx="12" fill="rgba(107,91,149,0.1)"/>
+                <text x="524" y="341" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">节奏式</text>
+                <rect x="568" y="324" width="72" height="24" rx="12" fill="rgba(107,91,149,0.07)"/>
+                <text x="604" y="341" fill="#8B6BAF" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle">新闻室式</text>
+                <!-- 说明文字 -->
+                <text x="364" y="362" fill="#4A3870" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="middle">完全隔离</text>
+                <text x="444" y="362" fill="#4A3870" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="middle">按季度切换</text>
+                <text x="524" y="362" fill="#4A3870" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="middle">固定时段</text>
+                <text x="604" y="362" fill="#4A3870" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="middle">随时切入</text>
+                <text x="328" y="382" fill="#9B7FC7" font-size="10" font-family="PingFang SC,sans-serif">适合度：强度递减，灵活度递增 →</text>
+              </g>
+
+              <!-- 实践路径 -->
+              <g clip-path="url(#cpPath)">
+                <line x1="328" y1="402" x2="636" y2="402" stroke="#E8E0F4" stroke-width="1"/>
+                <text x="328" y="422" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700" letter-spacing="1">实践路径</text>
+                <!-- 路径节点 -->
+                <!-- Step 1 -->
+                <circle cx="358" cy="448" r="14" fill="#6B5B95"/>
+                <text x="358" y="453" fill="#fff" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle" font-weight="700">1</text>
+                <line x1="372" y1="448" x2="418" y2="448" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <!-- Step 2 -->
+                <circle cx="432" cy="448" r="14" fill="#9B7FC7"/>
+                <text x="432" y="453" fill="#fff" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle" font-weight="700">2</text>
+                <line x1="446" y1="448" x2="490" y2="448" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <!-- Step 3 -->
+                <circle cx="504" cy="448" r="14" fill="#C4A8E8"/>
+                <text x="504" y="453" fill="#2D1B4E" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle" font-weight="700">3</text>
+                <line x1="518" y1="448" x2="562" y2="448" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="4,3"/>
+                <!-- Step 4 -->
+                <circle cx="576" cy="448" r="14" fill="#EDE8F8" stroke="#C4A8E8" stroke-width="1.5"/>
+                <text x="576" y="453" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif" text-anchor="middle" font-weight="700">4</text>
+                <!-- 步骤标签 -->
+                <text x="358" y="472" fill="#4A3870" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">设定深度</text>
+                <text x="358" y="484" fill="#4A3870" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">工作时间</text>
+                <text x="432" y="472" fill="#4A3870" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">排除一切</text>
+                <text x="432" y="484" fill="#4A3870" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">数字干扰</text>
+                <text x="504" y="472" fill="#4A3870" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">建立专注</text>
+                <text x="504" y="484" fill="#4A3870" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">仪式感</text>
+                <text x="576" y="472" fill="#4A3870" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">定期深度</text>
+                <text x="576" y="484" fill="#4A3870" font-size="9.5" font-family="PingFang SC,sans-serif" text-anchor="middle">复盘</text>
+                <!-- 附加引句 -->
+                <rect x="328" y="496" width="336" height="30" rx="4" fill="rgba(107,91,149,0.06)"/>
+                <text x="348" y="516" fill="#9B7FC7" font-size="11" font-family="PingFang SC,sans-serif" font-style="italic">「让雄心勃勃的目标变得清晰，让分心变得代价高昂。」</text>
+              </g>
+
+              <!-- ── 右栏：关键数据 ── -->
+              <g clip-path="url(#cpStat)">
+                <rect x="680" y="0" width="200" height="540" fill="rgba(245,239,224,0.6)"/>
+                <text x="700" y="36" fill="#6B5B95" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700" letter-spacing="1">关键洞察</text>
+
+                <!-- 数据卡 1 -->
+                <rect x="690" y="48" width="172" height="72" rx="8" fill="#fff" filter="url(#fShadow)"/>
+                <text id="pvtStat1" x="776" y="78" fill="#6B5B95" font-size="26" font-family="PingFang SC,sans-serif" font-weight="700" text-anchor="middle">4h</text>
+                <text x="776" y="96" fill="#4A3870" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="middle">优秀者日均深度</text>
+                <text x="776" y="110" fill="#9B7FC7" font-size="9" font-family="PingFang SC,sans-serif" text-anchor="middle">专注工作上限</text>
+
+                <!-- 数据卡 2 -->
+                <rect x="690" y="132" width="172" height="72" rx="8" fill="#6B5B95" filter="url(#fShadow)"/>
+                <text id="pvtStat2" x="776" y="162" fill="#fff" font-size="26" font-family="PingFang SC,sans-serif" font-weight="700" text-anchor="middle">2.5×</text>
+                <text x="776" y="180" fill="rgba(255,255,255,0.9)" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="middle">深度工作者产出</text>
+                <text x="776" y="194" fill="rgba(255,255,255,0.65)" font-size="9" font-family="PingFang SC,sans-serif" text-anchor="middle">是浮浅工作者的倍数</text>
+
+                <!-- 数据卡 3 -->
+                <rect x="690" y="216" width="172" height="72" rx="8" fill="#fff" filter="url(#fShadow)"/>
+                <text id="pvtStat3" x="776" y="246" fill="#9B5B30" font-size="26" font-family="PingFang SC,sans-serif" font-weight="700" text-anchor="middle">23m</text>
+                <text x="776" y="264" fill="#4A3870" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="middle">被打扰后重新</text>
+                <text x="776" y="278" fill="#9B7FC7" font-size="9" font-family="PingFang SC,sans-serif" text-anchor="middle">进入专注态的时间</text>
+
+                <!-- 分隔线 -->
+                <line x1="700" y1="302" x2="852" y2="302" stroke="#E8E0F4" stroke-width="1"/>
+
+                <!-- 书单推荐 -->
+                <text x="700" y="322" fill="#6B5B95" font-size="10" font-family="PingFang SC,sans-serif" font-weight="700" letter-spacing="1">延伸阅读</text>
+                <text x="700" y="342" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif" font-weight="600">《深度工作》</text>
+                <text x="700" y="357" fill="#8C9099" font-size="9.5" font-family="PingFang SC,sans-serif">Cal Newport</text>
+                <text x="700" y="378" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif" font-weight="600">《心流》</text>
+                <text x="700" y="393" fill="#8C9099" font-size="9.5" font-family="PingFang SC,sans-serif">Mihaly Csikszentmihalyi</text>
+                <text x="700" y="414" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif" font-weight="600">《注意力商人》</text>
+                <text x="700" y="429" fill="#8C9099" font-size="9.5" font-family="PingFang SC,sans-serif">Tim Wu</text>
+
+                <!-- 底部标注 -->
+                <line x1="700" y1="450" x2="852" y2="450" stroke="#E8E0F4" stroke-width="1"/>
+                <text x="700" y="468" fill="#C4A8E8" font-size="9" font-family="PingFang SC,sans-serif">AI 信息图 · 智能摘要</text>
+                <text x="700" y="482" fill="#C4A8E8" font-size="9" font-family="PingFang SC,sans-serif">Morandi Journal Style</text>
+                <text x="700" y="500" fill="rgba(196,168,232,0.5)" font-size="8.5" font-family="PingFang SC,sans-serif">钉钉文档 · 智能信息图插件</text>
+              </g>
+
+            </svg>
+
+            <!-- ── 布局 B：关键词放射图 ── -->
+            <svg id="sv2" viewBox="0 0 880 540" xmlns="http://www.w3.org/2000/svg" style="display:none">
+              <defs>
+                <radialGradient id="gRadCenter" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#6B5B95"/>
+                  <stop offset="100%" stop-color="#2D1B4E"/>
+                </radialGradient>
+                <radialGradient id="gRadBg" cx="50%" cy="50%" r="70%">
+                  <stop offset="0%" stop-color="#F8F5FF"/>
+                  <stop offset="100%" stop-color="#EDE8F8"/>
+                </radialGradient>
+                <filter id="fGlow">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                </filter>
+                <filter id="fCard">
+                  <feDropShadow dx="0" dy="2" stdDeviation="5" flood-opacity="0.1"/>
+                </filter>
+                <clipPath id="cpTop"><rect x="0" y="0" width="880" height="540"/></clipPath>
+              </defs>
+
+              <!-- 背景 -->
+              <rect width="880" height="540" fill="url(#gRadBg)"/>
+              <!-- 背景装饰圆 -->
+              <circle cx="440" cy="270" r="220" fill="rgba(107,91,149,0.04)"/>
+              <circle cx="440" cy="270" r="160" fill="rgba(107,91,149,0.04)"/>
+              <circle cx="440" cy="270" r="100" fill="rgba(107,91,149,0.05)"/>
+
+              <!-- 顶部标题栏 -->
+              <rect x="0" y="0" width="880" height="52" fill="#2D1B4E"/>
+              <text x="32" y="31" fill="#C4A8E8" font-size="11" font-family="PingFang SC,sans-serif" font-weight="600" letter-spacing="3">DEEP WORK · MIND MAP</text>
+              <text x="440" y="31" fill="rgba(255,255,255,0.6)" font-size="12" font-family="PingFang SC,sans-serif" text-anchor="middle">核心概念放射图</text>
+              <text x="848" y="31" fill="rgba(196,168,232,0.7)" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="end">AI 信息图 v2</text>
+
+              <!-- 中心圆 -->
+              <circle cx="440" cy="290" r="56" fill="url(#gRadCenter)" filter="url(#fGlow)"/>
+              <text x="440" y="283" fill="#fff" font-size="15" font-family="PingFang SC,sans-serif" font-weight="700" text-anchor="middle">深度工作</text>
+              <text x="440" y="301" fill="#C4A8E8" font-size="10" font-family="PingFang SC,sans-serif" text-anchor="middle">Deep Work</text>
+              <text x="440" y="316" fill="rgba(255,255,255,0.6)" font-size="9" font-family="PingFang SC,sans-serif" text-anchor="middle">核心能力</text>
+
+              <!-- 连接线（中心到各节点）-->
+              <!-- 节点1: 注意力残留 (上) 280,145 -->
+              <line x1="440" y1="234" x2="310" y2="167" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+              <!-- 节点2: 四种策略 (右上) 630,145 -->
+              <line x1="490" y1="248" x2="600" y2="162" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+              <!-- 节点3: 关键产出 (右) 660,290 -->
+              <line x1="496" y1="290" x2="620" y2="290" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+              <!-- 节点4: 实践规则 (右下) 600,420 -->
+              <line x1="482" y1="336" x2="584" y2="415" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+              <!-- 节点5: 浮浅陷阱 (下) 440,430 -->
+              <line x1="440" y1="346" x2="310" y2="420" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+              <!-- 节点6: 心流状态 (左) 170,290 -->
+              <line x1="384" y1="290" x2="262" y2="290" stroke="#C4A8E8" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.7"/>
+
+              <!-- 节点1: 注意力残留 -->
+              <rect x="222" y="90" width="156" height="84" rx="10" fill="#fff" filter="url(#fCard)"/>
+              <rect x="222" y="90" width="4" height="84" rx="2" fill="#9B5B30"/>
+              <text x="238" y="112" fill="#9B5B30" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700">注意力残留</text>
+              <text x="238" y="129" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif">任务切换后，旧任务</text>
+              <text x="238" y="146" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif">思绪残留约 20 分钟</text>
+              <text x="238" y="163" fill="#9B7FC7" font-size="9.5" font-family="PingFang SC,sans-serif">Leroy, 2009 研究发现</text>
+
+              <!-- 节点2: 四种策略 -->
+              <rect x="502" y="90" width="168" height="98" rx="10" fill="#6B5B95" filter="url(#fCard)"/>
+              <text x="518" y="115" fill="#fff" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700">四种工作策略</text>
+              <text x="518" y="134" fill="rgba(255,255,255,0.9)" font-size="10.5" font-family="PingFang SC,sans-serif">① 隐士式 · 完全隔离</text>
+              <text x="518" y="151" fill="rgba(255,255,255,0.8)" font-size="10.5" font-family="PingFang SC,sans-serif">② 双峰式 · 周期切换</text>
+              <text x="518" y="168" fill="rgba(255,255,255,0.7)" font-size="10.5" font-family="PingFang SC,sans-serif">③ 节奏式 · 固定时段</text>
+              <text x="518" y="176" fill="rgba(255,255,255,0.55)" font-size="9" font-family="PingFang SC,sans-serif">④ 新闻室式 · 随时切入</text>
+
+              <!-- 节点3: 关键产出 -->
+              <rect x="622" y="248" width="152" height="88" rx="10" fill="#fff" filter="url(#fCard)"/>
+              <rect x="622" y="248" width="4" height="88" rx="2" fill="#4A7C59"/>
+              <text x="638" y="270" fill="#4A7C59" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700">深度产出公式</text>
+              <text x="638" y="290" fill="#4A3870" font-size="11" font-family="PingFang SC,sans-serif">产出 = 时间 × 专注度</text>
+              <text x="638" y="308" fill="#4A3870" font-size="11" font-family="PingFang SC,sans-serif">专注度² 权重更高</text>
+              <text x="638" y="326" fill="#9B7FC7" font-size="9.5" font-family="PingFang SC,sans-serif">高强度专注的边际效益</text>
+
+              <!-- 节点4: 实践规则 -->
+              <rect x="502" y="418" width="160" height="96" rx="10" fill="#F5EFE0" filter="url(#fCard)"/>
+              <rect x="502" y="418" width="4" height="96" rx="2" fill="#9B5B30"/>
+              <text x="518" y="440" fill="#9B5B30" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700">四大实践规则</text>
+              <text x="518" y="458" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif">拥抱无聊 · 结束工作日</text>
+              <text x="518" y="475" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif">戒断社交媒体 · 摒弃</text>
+              <text x="518" y="492" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif">浮浅工作 · 精力管理</text>
+              <text x="518" y="506" fill="#8C9099" font-size="9" font-family="PingFang SC,sans-serif">以稀缺换价值</text>
+
+              <!-- 节点5: 浮浅陷阱 -->
+              <rect x="198" y="418" width="156" height="90" rx="10" fill="#fff" filter="url(#fCard)"/>
+              <rect x="198" y="418" width="4" height="90" rx="2" fill="#B5594A"/>
+              <text x="214" y="440" fill="#B5594A" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700">浮浅工作陷阱</text>
+              <text x="214" y="458" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif">收邮件·刷会议·</text>
+              <text x="214" y="475" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif">即时响应的幻觉</text>
+              <text x="214" y="492" fill="#4A3870" font-size="10.5" font-family="PingFang SC,sans-serif">忙碌 ≠ 高价值</text>
+              <text x="214" y="500" fill="#B5594A" font-size="9" font-family="PingFang SC,sans-serif">认知带宽被侵占</text>
+
+              <!-- 节点6: 心流状态 -->
+              <rect x="100" y="248" width="158" height="88" rx="10" fill="#2D1B4E" filter="url(#fCard)"/>
+              <text x="116" y="270" fill="#C4A8E8" font-size="11" font-family="PingFang SC,sans-serif" font-weight="700">心流与深度工作</text>
+              <text x="116" y="290" fill="rgba(255,255,255,0.85)" font-size="10.5" font-family="PingFang SC,sans-serif">完全沉浸于挑战性</text>
+              <text x="116" y="308" fill="rgba(255,255,255,0.85)" font-size="10.5" font-family="PingFang SC,sans-serif">任务时的最佳体验</text>
+              <text x="116" y="326" fill="rgba(196,168,232,0.7)" font-size="9.5" font-family="PingFang SC,sans-serif">心理学家 Csikszentmihalyi</text>
+
+              <!-- 中心引句（底部） -->
+              <rect x="140" y="500" width="600" height="30" rx="8" fill="rgba(107,91,149,0.08)"/>
+              <text x="440" y="520" fill="#6B5B95" font-size="11.5" font-family="PingFang SC,sans-serif" text-anchor="middle" font-style="italic">「专注是一种可以训练的肌肉，而分心则是让它萎缩的惰性。」</text>
+
+            </svg>
+
+          </div><!-- chart-wrap -->
+        </div><!-- card-infographic -->
+
+        <div class="card-toolbar">
+          <div class="toolbar-left">
+            <button class="tool-btn" onclick="toggleEditPanel()">✏️ 编辑</button>
+            <button class="tool-btn" onclick="downloadSVG()">⬇️ 导出</button>
+          </div>
+          <div class="toolbar-right">
+            <span class="gen-time">2026-02-28 AI 生成</span>
+            <button class="tool-btn" onclick="closeCard()" style="color:#8C9099">✕ 关闭</button>
+          </div>
+        </div>
+
+        <!-- 摘要（在后） -->
+        <div class="card-summary" id="summaryArea">
+          <div class="summary-text">
+            <strong>核心命题：</strong>在持续分心的数字时代，<strong>深度工作</strong>是一种稀缺且极具价值的认知能力——全神贯注对高认知需求任务进行专注，是知识工作者创造真实价值的核心路径。文章提出四种策略，围绕<strong>注意力残留、浮浅工作陷阱、专注力训练</strong>三条主线构建实践框架。
+          </div>
+        </div>
+
+      </div><!-- card-body -->
+    </div><!-- info-card -->
+
+    <!-- 文档正文 -->
+    <div class="doc-body">
+      <p>在当今这个被通知、消息和会议切割得支离破碎的时代，<span class="highlight">真正的专注已经成为一种稀缺商品</span>。计算机科学家卡尔·纽波特（Cal Newport）将这种专注能力命名为「<strong>深度工作</strong>」（Deep Work），并将其定义为：<em>在无干扰状态下专注于高认知需求任务，将认知能力推至极限，创造新价值、提升技能，并且很难被复制。</em></p>
+
+      <blockquote>「在知识工作领域，快速掌握复杂技能和产出高质量成果的能力越来越稀缺，但与此同时，也越来越有价值。深度工作者处于掌控这两种能力的最佳位置。」— Cal Newport</blockquote>
+
+      <h2>一、为什么深度工作日趋稀缺？</h2>
+      <p>神经科学家苏菲·勒鲁瓦（Sophie Leroy）的研究揭示了「<strong>注意力残留</strong>」现象：当你从任务 A 切换到任务 B 时，你的注意力并不会立刻完全转移——任务 A 的思维碎片会在新任务中残留长达 20 分钟。这意味着现代职场中每日数十次的任务切换，实际上使每个人都处于一种慢性的认知分裂状态。</p>
+
+      <h3>「便利性偏见」的结构性陷阱</h3>
+      <p>纽波特指出，组织往往奖励「可见的忙碌」——快速回复邮件、频繁出席会议——而非不可见的深度思考。这种「便利性偏见」使得浮浅工作在企业文化中得到强化，而真正产生价值的深度工作反而被边缘化。</p>
+
+      <h2>二、四种深度工作哲学</h2>
+      <ul>
+        <li><strong>隐士式（Monastic）</strong>：完全与世隔绝，拒绝一切浅层次义务。适合以产出专著或重要研究为目标的少数人。</li>
+        <li><strong>双峰式（Bimodal）</strong>：将时间分为深度工作期（数天至数周）和开放互动期，按季度或月份切换。</li>
+        <li><strong>节奏式（Rhythmic）</strong>：每天设定固定的深度工作时段，通过习惯化降低启动阻力。是最适合普通职场人的策略。</li>
+        <li><strong>新闻室式（Journalistic）</strong>：随时能在时间缝隙中切换进入深度状态，要求极强的意志力训练。</li>
+      </ul>
+
+      <h2>三、实践的核心：拥抱无聊</h2>
+      <p>纽波特最反直觉的建议之一是：<span class="highlight">不要把无聊当作填充娱乐内容的信号</span>。等待电梯时刷手机、排队时看视频——这些行为训练大脑在遭遇任何无刺激时立即寻求娱乐，从根本上损害了大脑维持深度专注的能力。<strong>专注是一种肌肉，而分心是让它萎缩的惰性。</strong></p>
+    </div>
+  </div><!-- doc-panel -->
+
+  <!-- 侧边栏 -->
+  <div class="side-panel">
+    <div class="side-card">
+      <h4>🏷️ 关键词</h4>
+      <div class="tag-cloud">
+        <span class="tag tag-purple lg">深度工作</span>
+        <span class="tag tag-purple md">注意力</span>
+        <span class="tag tag-olive md">心流</span>
+        <span class="tag tag-purple sm">注意力残留</span>
+        <span class="tag tag-rust md">浮浅工作</span>
+        <span class="tag tag-purple sm">刻意练习</span>
+        <span class="tag tag-olive sm">认知带宽</span>
+        <span class="tag tag-blue sm">数字极简</span>
+        <span class="tag tag-rust sm">便利性偏见</span>
+        <span class="tag tag-purple sm">专注力</span>
+        <span class="tag tag-blue sm">知识工作</span>
+        <span class="tag tag-olive sm">稀缺价值</span>
+      </div>
+    </div>
+
+    <div class="side-card">
+      <h4>💬 金句摘录</h4>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="padding:10px 12px;background:#F8F5FF;border-radius:6px;border-left:3px solid #6B5B95;">
+          <div style="font-size:12px;color:#2D1B4E;line-height:1.6;font-style:italic">「专注是稀缺时代的竞争优势。」</div>
+        </div>
+        <div style="padding:10px 12px;background:#F5EFE0;border-radius:6px;border-left:3px solid #9B5B30;">
+          <div style="font-size:12px;color:#4A2E10;line-height:1.6;font-style:italic">「忙碌不等于高价值，产出才是衡量标准。」</div>
+        </div>
+        <div style="padding:10px 12px;background:#EDF3E8;border-radius:6px;border-left:3px solid #4A7C59;">
+          <div style="font-size:12px;color:#2E3E2A;line-height:1.6;font-style:italic">「拥抱无聊，才能重建专注的能力。」</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gen-panel">
+      <h4>🎨 布局风格</h4>
+      <div class="layout-opt">
+        <div class="layout-item active" id="lo0" onclick="selectLayout(0)">
+          <div class="layout-item-name">杂志海报式</div>
+          <div class="layout-item-desc">分栏排版 · 金句 + 策略 + 数据</div>
+        </div>
+        <div class="layout-item" id="lo1" onclick="selectLayout(1)">
+          <div class="layout-item-name">概念放射图</div>
+          <div class="layout-item-desc">中心发散 · 核心概念关联</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 流水线动画弹层 -->
+<div class="pipeline-overlay" id="pipelineOverlay">
+  <div class="pipeline-box">
+    <h3 id="pTitle">🧠 正在生成信息图…</h3>
+    <div class="p-steps">
+      <div class="p-step active" id="ps1"><div class="p-dot"></div><span id="ps1T">分析文档结构与关键概念</span></div>
+      <div class="p-step" id="ps2"><div class="p-dot"></div><span id="ps2T">提取金句 · 关键词 · 论点</span></div>
+      <div class="p-step" id="ps3"><div class="p-dot"></div><span id="ps3T">匹配信息图布局方案</span></div>
+      <div class="p-step" id="ps4"><div class="p-dot"></div><span id="ps4T">渲染海报风格 SVG</span></div>
+    </div>
+    <div id="pStatus">处理中…</div>
+  </div>
+</div>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toastEl"></div>
+
+<script>
+/* ── 全局状态 ── */
+let isExpanded = false;
+let layoutIdx = 0;
+let pendingTheme = 'purple';
+let currentTheme = 'purple';
+
+/* ── 工具函数 ── */
+function toast(msg) {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+/* ── 卡片展开/收起 ── */
+function toggleCard() {
+  const body = document.getElementById('cardBody');
+  const icon = document.getElementById('toggleIcon');
+  isExpanded = !isExpanded;
+  body.classList.toggle('open', isExpanded);
+  icon.classList.toggle('open', isExpanded);
+  document.getElementById('toggleText').textContent = isExpanded ? '收起' : '展开看看';
+  document.getElementById('cardTitle').textContent = isExpanded ? '智能信息图' : '摘要';
+  document.getElementById('cardTeaser').style.display = isExpanded ? 'none' : '';
+  if (isExpanded && !body.querySelector('.chart-wrap svg[style*="block"]')) {
+    showLayout(layoutIdx);
+  }
+  if (!isExpanded) document.getElementById('editPanel').classList.remove('open');
+}
+
+/* ── 关闭 / 恢复 ── */
+function closeCard() {
+  document.getElementById('infoCard').style.display = 'none';
+  const bar = document.getElementById('restoreBar');
+  bar.style.display = 'flex';
+}
+function restoreCard() {
+  document.getElementById('infoCard').style.display = '';
+  document.getElementById('restoreBar').style.display = 'none';
+}
+
+/* ── 布局切换 ── */
+function showLayout(idx) {
+  ['sv1','sv2'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove('svg-enter');
+    if (i === idx) {
+      el.style.display = 'block';
+      void el.offsetWidth;
+      el.classList.add('svg-enter');
+    } else {
+      el.style.display = 'none';
+    }
+  });
+  // 同步侧边栏选中态
+  [0,1].forEach(i => {
+    const lo = document.getElementById('lo'+i);
+    if (lo) lo.classList.toggle('active', i === idx);
+  });
+}
+
+function selectLayout(idx) {
+  layoutIdx = idx;
+  showLayout(idx);
+  if (!isExpanded) toggleCard();
+}
+
+/* ── 编辑面板 ── */
+function toggleEditPanel() {
+  const panel = document.getElementById('editPanel');
+  const showing = panel.classList.toggle('open');
+  if (showing) {
+    // 同步文字字段当前值
+    const syncMap = {
+      pef_title:'pvtTitle', pef_q1:'pvtQuote1', pef_q2:'pvtQuote2',
+      pef_d1:'pvtStat1', pef_d2:'pvtStat2', pef_d3:'pvtStat3'
+    };
+    Object.entries(syncMap).forEach(([fid, sid]) => {
+      const svgEl = document.getElementById(sid);
+      const inp = document.getElementById(fid);
+      if (svgEl && inp) inp.value = svgEl.textContent;
+    });
+  }
+}
+
+function switchEditTab(tab, el) {
+  document.querySelectorAll('.edit-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('editTabText').style.display = tab === 'text' ? '' : 'none';
+  document.getElementById('editTabStyle').style.display = tab === 'style' ? '' : 'none';
+}
+
+function liveEditText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+const posterStyles = {
+  morandi: { hero:['#2D1B4E','#6B5B95'], center:['#6B5B95','#2D1B4E'], bg:['#F8F5FF','#EDE8F8'] },
+  forest:  { hero:['#1A3C28','#4A7C59'], center:['#4A7C59','#1A3C28'], bg:['#F0F7EC','#E0F0E8'] },
+  amber:   { hero:['#4A2A10','#9B5B30'], center:['#9B5B30','#4A2A10'], bg:['#FAF0E6','#F0E0D0'] },
+  ocean:   { hero:['#0D3A6A','#2B6CB0'], center:['#2B6CB0','#0D3A6A'], bg:['#E6F0FA','#D6E8F5'] },
+};
+
+function applyPosterStyle(name, el) {
+  document.querySelectorAll('.style-opt').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  currentTheme = name;
+  const t = posterStyles[name];
+  function setGrad(id, c0, c1) {
+    const g = document.getElementById(id);
+    if (g) { g.children[0].setAttribute('stop-color',c0); g.children[1].setAttribute('stop-color',c1); }
+  }
+  setGrad('gHeroPoster', t.hero[0], t.hero[1]);
+  setGrad('gRadCenter',  t.center[0], t.center[1]);
+  setGrad('gRadBg',      t.bg[0], t.bg[1]);
+  toast(`已切换风格：${el.querySelector('.style-opt-name').textContent}`);
+}
+
+// 兼容旧调用
+function applyThemeConfirm() { toggleEditPanel(); }
+function selectTheme() {}
+
+/* ── 流水线动画 ── */
+const genPlans = [
+  {
+    title:'🖼️ 生成杂志海报式信息图…',
+    steps:['分析论点结构与关键金句','提取概念层级与核心关键词','映射「杂志海报」分栏布局','渲染 Morandi Journal 风格 SVG'],
+    toast:'已切换为「杂志海报式」布局',
+    targetIdx: 0
+  },
+  {
+    title:'🧠 生成概念放射图…',
+    steps:['提取核心概念与关联关系','构建概念节点网络','映射「放射图」Hub-Spoke 布局','渲染深色主题概念图 SVG'],
+    toast:'已切换为「概念放射图」布局',
+    targetIdx: 1
+  }
+];
+
+function triggerGen() {
+  const nextIdx = (layoutIdx + 1) % 2;
+  const plan = genPlans[nextIdx];
+
+  const ov = document.getElementById('pipelineOverlay');
+  document.getElementById('pTitle').textContent = plan.title;
+  ['ps1','ps2','ps3','ps4'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    const tEl = document.getElementById(id+'T');
+    el.className = 'p-step' + (i === 0 ? ' active' : '');
+    if (tEl) tEl.textContent = plan.steps[i] || '';
+  });
+  document.getElementById('pStatus').className = '';
+  document.getElementById('pStatus').textContent = '处理中…';
+
+  ov.classList.add('show');
+
+  let step = 0;
+  const steps = ['ps1','ps2','ps3','ps4'];
+  const iv = setInterval(() => {
+    if (step < steps.length - 1) {
+      document.getElementById(steps[step]).className = 'p-step done';
+      step++;
+      document.getElementById(steps[step]).className = 'p-step active';
+    } else {
+      clearInterval(iv);
+      document.getElementById(steps[step]).className = 'p-step done';
+      document.getElementById('pStatus').textContent = '✅ 生成完成！';
+      document.getElementById('pStatus').className = 'done';
+      setTimeout(() => {
+        ov.classList.remove('show');
+        layoutIdx = nextIdx;
+        showLayout(layoutIdx);
+        if (!isExpanded) toggleCard();
+        toast(plan.toast);
+      }, 1800);
+    }
+  }, 700);
+}
+
+/* ── 导出 SVG ── */
+function downloadSVG() {
+  const svgId = layoutIdx === 0 ? 'sv1' : 'sv2';
+  const svg = document.getElementById(svgId);
+  const layoutName = layoutIdx === 0 ? 'poster' : 'mindmap';
+  const s = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([s], {type:'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `深度工作-信息图-${layoutName}.svg`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('SVG 已下载');
+}
+
+/* ── 初始化 ── */
+(function init() {
+  // 默认展开卡片
+  toggleCard();
+})();
+</script>
+</body>
+</html>

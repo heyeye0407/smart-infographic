@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能信息图 · 文档主站</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif; background: #F8F7FF; color: #1a1a2e; min-height: 100vh; }
+
+/* ============================================================
+   HUB VIEW
+   ============================================================ */
+#hubView { display: flex; height: 100vh; }
+
+/* ── Sidebar ── */
+.hub-sidebar {
+  width: 232px; background: #1C1847; color: #fff;
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.sidebar-logo {
+  padding: 22px 18px 18px; display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.logo-icon {
+  width: 34px; height: 34px; border-radius: 9px;
+  background: linear-gradient(135deg, #7C6FE0, #A855F7);
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  flex-shrink: 0;
+}
+.logo-text .logo-name { font-size: 14.5px; font-weight: 700; display: block; }
+.logo-text .logo-sub  { font-size: 10.5px; color: rgba(255,255,255,0.4); display: block; margin-top: 1px; }
+.sidebar-actions { padding: 18px 14px; display: flex; flex-direction: column; gap: 8px; }
+.sb-btn {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 14px; border-radius: 10px; border: none;
+  cursor: pointer; font-size: 13.5px; font-weight: 500; width: 100%; text-align: left;
+  transition: all 0.15s;
+}
+.sb-btn.primary { background: linear-gradient(135deg,#7C6FE0,#A855F7); color: #fff; }
+.sb-btn.primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.sb-btn.secondary { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.82); border: 1px solid rgba(255,255,255,0.13); }
+.sb-btn.secondary:hover { background: rgba(255,255,255,0.15); }
+.sidebar-nav { padding: 6px 14px; flex: 1; }
+.nav-group-label { font-size: 10.5px; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px; padding: 14px 0 5px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px; padding: 8px 10px;
+  border-radius: 8px; cursor: pointer; font-size: 13px; color: rgba(255,255,255,0.6);
+  transition: all 0.15s; margin-bottom: 1px;
+}
+.nav-item:hover, .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; }
+.nav-count { margin-left: auto; font-size: 11px; background: rgba(255,255,255,0.15); padding: 1px 6px; border-radius: 8px; }
+.sidebar-footer { padding: 14px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: rgba(255,255,255,0.25); text-align: center; }
+
+/* ── Hub Main ── */
+.hub-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.hub-topbar {
+  padding: 14px 26px; background: #fff; border-bottom: 1px solid #ECE9F8;
+  display: flex; align-items: center; gap: 14px;
+}
+.hub-search { flex: 1; max-width: 380px; position: relative; }
+.hub-search input {
+  width: 100%; padding: 8px 14px 8px 34px;
+  border: 1px solid #DDD9F5; border-radius: 10px; font-size: 13.5px;
+  background: #F8F7FF; color: #1a1a2e; outline: none; transition: border 0.15s;
+}
+.hub-search input:focus { border-color: #7C6FE0; }
+.hub-search .si { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #B0A8D8; font-size: 14px; }
+.hub-spacer { flex: 1; }
+.hub-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg,#7C6FE0,#A855F7);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+}
+.hub-content { flex: 1; overflow-y: auto; padding: 26px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.section-title { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+.section-subtitle { font-size: 12px; color: #9CA3AF; margin-left: 8px; font-weight: 400; }
+
+/* ── Doc Grid ── */
+.doc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(188px,1fr)); gap: 14px; margin-bottom: 28px; }
+.doc-card { background: #fff; border: 1.5px solid #ECE9F8; border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; }
+.doc-card:hover { border-color: #7C6FE0; box-shadow: 0 6px 22px rgba(124,111,224,0.15); transform: translateY(-2px); }
+.doc-thumb {
+  height: 112px; display: flex; align-items: center; justify-content: center;
+  font-size: 34px; position: relative;
+}
+.doc-thumb-ai { position: absolute; top: 8px; right: 8px; background: linear-gradient(135deg,#7C6FE0,#A855F7); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 9px; font-weight: 700; }
+.doc-card-body { padding: 10px 12px; }
+.doc-card-name { font-size: 13px; font-weight: 600; color: #1a1a2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+.doc-card-meta { font-size: 11px; color: #9CA3AF; }
+.doc-card-add { border-style: dashed !important; background: #FAFAFF !important; }
+.doc-card-add .doc-thumb { font-size: 44px; color: #C4B5FD; background: transparent; }
+.doc-card-add .doc-card-name { color: #9CA3AF; }
+
+/* ── Doc List ── */
+.doc-list { background: #fff; border: 1px solid #ECE9F8; border-radius: 12px; overflow: hidden; }
+.dl-head {
+  display: grid; grid-template-columns: 1fr 90px 130px 90px;
+  padding: 9px 16px; background: #FAFAFF; border-bottom: 1px solid #F2EFF8;
+  font-size: 11.5px; color: #9CA3AF; font-weight: 600;
+}
+.dl-row {
+  display: grid; grid-template-columns: 1fr 90px 130px 90px;
+  padding: 11px 16px; border-bottom: 1px solid #F7F5FF; cursor: pointer;
+  font-size: 13px; align-items: center; transition: background 0.15s;
+}
+.dl-row:last-child { border-bottom: none; }
+.dl-row:hover { background: #F8F7FF; }
+.dl-name { display: flex; align-items: center; gap: 9px; font-weight: 500; color: #1a1a2e; }
+.dl-icon { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.dl-icon.data    { background: #FFF0E6; }
+.dl-icon.article { background: #EDE9FE; }
+.dl-icon.new     { background: #ECFDF5; }
+.dl-ai-tag { font-size: 10px; background: linear-gradient(135deg,#7C6FE0,#A855F7); color: #fff; padding: 1px 6px; border-radius: 8px; font-weight: 700; }
+.dl-status-done { color: #10B981; font-size: 12px; font-weight: 600; }
+.dl-status-pend { color: #9CA3AF; font-size: 12px; }
+
+/* ============================================================
+   EDITOR VIEW
+   ============================================================ */
+#editorView { display: none; flex-direction: column; height: 100vh; }
+.ed-topbar {
+  padding: 12px 22px; background: #fff; border-bottom: 1px solid #ECE9F8;
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+}
+.back-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 13px; border: 1px solid #DDD9F5; border-radius: 8px;
+  background: #fff; cursor: pointer; font-size: 13px; color: #6B5B95; flex-shrink: 0;
+  transition: all 0.15s;
+}
+.back-btn:hover { background: #F8F7FF; }
+.ed-title-input {
+  flex: 1; font-size: 17px; font-weight: 700; color: #1a1a2e;
+  border: none; outline: none; background: transparent;
+}
+.save-status { font-size: 11.5px; color: #B0A8D8; flex-shrink: 0; }
+.gen-now-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 9px; border: none; cursor: pointer;
+  background: linear-gradient(135deg,#7C6FE0,#A855F7); color: #fff;
+  font-size: 13px; font-weight: 600; flex-shrink: 0; transition: filter 0.15s;
+}
+.gen-now-btn:hover { filter: brightness(1.1); }
+.ed-body { flex: 1; display: flex; overflow: hidden; }
+
+/* ── Editor Left Panel ── */
+.ed-left {
+  flex: 1; display: flex; flex-direction: column;
+  overflow-y: auto; padding: 20px; gap: 14px;
+}
+
+/* Char progress */
+.char-prog-card {
+  background: #fff; border: 1px solid #ECE9F8; border-radius: 12px; padding: 14px 16px; flex-shrink: 0;
+}
+.char-prog-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.char-prog-label { font-size: 12.5px; color: #6B7280; }
+.char-prog-num { font-size: 12.5px; font-weight: 700; color: #7C6FE0; }
+.prog-bg { height: 6px; background: #EDE9FE; border-radius: 6px; overflow: hidden; }
+.prog-fill { height: 100%; background: linear-gradient(90deg,#7C6FE0,#A855F7); border-radius: 6px; width: 0%; transition: width 0.3s ease; }
+.prog-fill.done { background: linear-gradient(90deg,#10B981,#34D399); }
+.char-hint { font-size: 11.5px; color: #9CA3AF; margin-top: 6px; }
+
+/* Pipeline */
+.pipeline-card {
+  display: none; background: #fff; border: 1px solid #ECE9F8; border-radius: 12px; padding: 16px; flex-shrink: 0;
+}
+.pipeline-card.show { display: block; }
+.pipeline-title { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-bottom: 13px; }
+.p-steps { display: flex; flex-direction: column; gap: 8px; }
+.p-step { display: flex; align-items: center; gap: 11px; padding: 8px 12px; border-radius: 9px; background: #F8F7FF; font-size: 13px; transition: all 0.3s; }
+.p-step-icon { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; transition: all 0.3s; }
+.p-step.pending .p-step-icon { background: #E5E7EB; color: #9CA3AF; }
+.p-step.active  .p-step-icon { background: #7C6FE0; color: #fff; animation: spin-pulse 1s infinite; }
+.p-step.done    .p-step-icon { background: #10B981; color: #fff; }
+.p-step.pending { color: #9CA3AF; }
+.p-step.active  { color: #1a1a2e; font-weight: 500; }
+.p-step.done    { color: #6B7280; }
+.p-step-prog { margin-left: auto; font-size: 11px; }
+.p-step.pending .p-step-prog { color: #9CA3AF; }
+.p-step.active  .p-step-prog { color: #7C6FE0; }
+.p-step.done    .p-step-prog { color: #10B981; }
+@keyframes spin-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(124,111,224,.4)} 50%{box-shadow:0 0 0 6px rgba(124,111,224,0)} }
+
+/* Restore bar */
+.restore-bar {
+  display: none; align-items: center; gap: 12px;
+  background: #1C1847; color: rgba(255,255,255,.82); padding: 10px 16px;
+  font-size: 12.5px; border-radius: 10px; flex-shrink: 0;
+}
+.restore-bar.show { display: flex; }
+.restore-btn { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2); color: #fff; padding: 4px 12px; border-radius: 7px; cursor: pointer; font-size: 12px; }
+.restore-btn:hover { background: rgba(255,255,255,.25); }
+
+/* Info card */
+.info-card {
+  display: none; background: #fff; border: 1.5px solid #ECE9F8;
+  border-radius: 14px; overflow: hidden; box-shadow: 0 2px 12px rgba(124,111,224,.08); flex-shrink: 0;
+}
+.card-header { display: flex; align-items: center; gap: 9px; padding: 12px 16px; cursor: pointer; user-select: none; }
+.ai-badge { background: linear-gradient(135deg,#7C6FE0,#A855F7); color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 9px; flex-shrink: 0; }
+.card-title-lbl { font-size: 13.5px; font-weight: 700; color: #1a1a2e; flex-shrink: 0; }
+.card-teaser { flex: 1; font-size: 12.5px; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.toggle-btn { display: flex; align-items: center; gap: 4px; background: #F3F2FC; border: none; border-radius: 8px; padding: 5px 11px; cursor: pointer; font-size: 12.5px; color: #7C6FE0; font-weight: 500; flex-shrink: 0; transition: background 0.15s; }
+.toggle-btn:hover { background: #EDE9FE; }
+.t-icon { transition: transform 0.25s; display: inline-block; }
+.t-icon.up { transform: rotate(180deg); }
+.card-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+.card-body.show { max-height: 1400px; }
+
+/* Edit panel */
+.edit-panel { display: none; border-bottom: 1px solid #F3F2FC; background: #FAFAFF; padding: 12px 16px; }
+.edit-panel.show { display: block; }
+.edit-tabs { display: flex; gap: 4px; margin-bottom: 11px; }
+.edit-tab { padding: 5px 12px; border: 1px solid #DDD9F5; background: #fff; border-radius: 7px; cursor: pointer; font-size: 12px; color: #6B5B95; transition: all 0.15s; }
+.edit-tab.active { background: #7C6FE0; color: #fff; border-color: #7C6FE0; }
+.edit-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ef label { display: block; font-size: 10.5px; color: #9CA3AF; margin-bottom: 3px; }
+.ef input { width: 100%; padding: 6px 10px; border: 1px solid #DDD9F5; border-radius: 7px; font-size: 12.5px; color: #1a1a2e; outline: none; transition: border 0.15s; }
+.ef input:focus { border-color: #7C6FE0; }
+.style-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.style-opt { border: 2px solid transparent; border-radius: 10px; overflow: hidden; cursor: pointer; transition: border 0.15s; }
+.style-opt.active, .style-opt:hover { border-color: #7C6FE0; }
+.style-preview { height: 44px; }
+.style-name { font-size: 11px; text-align: center; padding: 4px; background: #fff; color: #4B5563; }
+
+/* Card infographic, toolbar, summary */
+.card-svg-wrap { padding: 0 16px 12px; }
+.card-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid #F3F2FC; }
+.tbar-left, .tbar-right { display: flex; align-items: center; gap: 7px; }
+.tbar-btn { display: flex; align-items: center; gap: 5px; padding: 5px 11px; border: 1px solid #DDD9F5; background: #fff; border-radius: 8px; cursor: pointer; font-size: 12px; color: #6B5B95; transition: all 0.15s; }
+.tbar-btn:hover { background: #F8F7FF; }
+.tbar-btn.close:hover { color: #EF4444; border-color: #FCA5A5; background: #FFF5F5; }
+.gen-time-lbl { font-size: 11px; color: #9CA3AF; }
+.card-summary { padding: 14px 16px; font-size: 13px; line-height: 1.75; color: #374151; border-top: 1px solid #F3F2FC; }
+
+/* Doc editor */
+.doc-editor-card { background: #fff; border: 1px solid #ECE9F8; border-radius: 12px; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 260px; }
+.editor-fmt-bar { padding: 7px 14px; border-bottom: 1px solid #F3F2FC; display: flex; gap: 3px; align-items: center; }
+.fmt-btn { padding: 4px 8px; border: none; background: transparent; border-radius: 5px; cursor: pointer; font-size: 12.5px; color: #6B7280; transition: background 0.15s; }
+.fmt-btn:hover { background: #F3F2FC; color: #7C6FE0; }
+.fmt-sep { width: 1px; height: 16px; background: #E5E7EB; margin: 0 3px; }
+.doc-editor {
+  flex: 1; padding: 18px 22px; font-size: 14.5px; line-height: 1.85; color: #1a1a2e;
+  outline: none; overflow-y: auto; min-height: 160px;
+}
+.doc-editor:empty::before { content: attr(data-placeholder); color: #C4B5FD; pointer-events: none; }
+
+/* ── Editor Right Panel ── */
+.ed-right {
+  width: 252px; flex-shrink: 0; border-left: 1px solid #ECE9F8;
+  background: #fff; overflow-y: auto; padding: 18px 14px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.panel-card { background: #F8F7FF; border-radius: 10px; padding: 12px 14px; }
+.panel-card-title { font-size: 11px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stat-item { background: #fff; border-radius: 8px; padding: 9px; text-align: center; }
+.stat-value { font-size: 20px; font-weight: 800; color: #7C6FE0; line-height: 1; }
+.stat-label { font-size: 10.5px; color: #9CA3AF; margin-top: 3px; }
+.kw-cloud { display: flex; flex-wrap: wrap; gap: 5px; }
+.kw-tag { background: #EDE9FE; color: #7C6FE0; font-size: 11.5px; padding: 3px 9px; border-radius: 9px; font-weight: 500; }
+.infograph-status { font-size: 12.5px; color: #9CA3AF; }
+.infograph-status.done { color: #10B981; font-weight: 600; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 22px; left: 50%; z-index: 9999;
+  transform: translateX(-50%) translateY(60px);
+  background: #1C1847; color: #fff; padding: 9px 20px;
+  border-radius: 20px; font-size: 13px; pointer-events: none;
+  transition: transform 0.28s ease;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- =====================================================
+     HUB VIEW
+     ===================================================== -->
+<div id="hubView">
+
+  <!-- Sidebar -->
+  <div class="hub-sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">✦</div>
+      <div class="logo-text">
+        <span class="logo-name">智能信息图</span>
+        <span class="logo-sub">文档主站 Beta</span>
+      </div>
+    </div>
+
+    <div class="sidebar-actions">
+      <button class="sb-btn primary" onclick="newDoc()">
+        <span>＋</span><span>新建文档</span>
+      </button>
+      <button class="sb-btn secondary" onclick="document.getElementById('fileInput').click()">
+        <span>↑</span><span>上传文件</span>
+      </button>
+    </div>
+
+    <div class="sidebar-nav">
+      <div class="nav-group-label">文档空间</div>
+      <div class="nav-item active" onclick="setNav(this)">
+        <span>📄</span><span>全部文档</span><span class="nav-count" id="navDocCount">2</span>
+      </div>
+      <div class="nav-item" onclick="setNav(this)">
+        <span>✦</span><span>已生成信息图</span><span class="nav-count">2</span>
+      </div>
+      <div class="nav-item" onclick="setNav(this)">
+        <span>⭐</span><span>收藏</span>
+      </div>
+      <div class="nav-group-label">工具</div>
+      <div class="nav-item" onclick="setNav(this)">
+        <span>🗑</span><span>回收站</span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">v1.0 · Smart Infographic</div>
+  </div>
+
+  <!-- Main -->
+  <div class="hub-main">
+    <div class="hub-topbar">
+      <div class="hub-search">
+        <span class="si">🔍</span>
+        <input type="text" placeholder="搜索文档…" oninput="filterDocs(this.value)" />
+      </div>
+      <div class="hub-spacer"></div>
+      <div class="hub-avatar">张</div>
+    </div>
+
+    <div class="hub-content">
+      <!-- Recent grid -->
+      <div class="section-header">
+        <div class="section-title">最近文档 <span class="section-subtitle">按修改时间排序</span></div>
+      </div>
+
+      <div class="doc-grid" id="docGrid">
+        <!-- Demo: Business report -->
+        <div class="doc-card" onclick="openDemo('demo')">
+          <div class="doc-thumb" style="background:linear-gradient(135deg,#FFF0E6,#FFD5B8)">
+            📊<div class="doc-thumb-ai">✦ AI</div>
+          </div>
+          <div class="doc-card-body">
+            <div class="doc-card-name">星云科技 Q3 业绩报告</div>
+            <div class="doc-card-meta">2,847 字符 · 昨天 14:32</div>
+          </div>
+        </div>
+
+        <!-- Demo: Deep Work -->
+        <div class="doc-card" onclick="openDemo('poster')">
+          <div class="doc-thumb" style="background:linear-gradient(135deg,#EDE9FE,#DDD6FE)">
+            🧠<div class="doc-thumb-ai">✦ AI</div>
+          </div>
+          <div class="doc-card-body">
+            <div class="doc-card-name">深度工作：注意力时代的核心竞争力</div>
+            <div class="doc-card-meta">3,200 字符 · 3 天前</div>
+          </div>
+        </div>
+
+        <!-- Dynamic cards injected here -->
+        <div id="dynamicGrid"></div>
+
+        <!-- Add new -->
+        <div class="doc-card doc-card-add" onclick="newDoc()">
+          <div class="doc-thumb">＋</div>
+          <div class="doc-card-body">
+            <div class="doc-card-name">新建文档</div>
+            <div class="doc-card-meta">点击创建</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- All docs list -->
+      <div class="section-header">
+        <div class="section-title">全部文档</div>
+      </div>
+
+      <div class="doc-list">
+        <div class="dl-head">
+          <div>文档名称</div><div>字数</div><div>更新时间</div><div>信息图</div>
+        </div>
+        <div class="dl-row" onclick="openDemo('demo')">
+          <div class="dl-name">
+            <div class="dl-icon data">📊</div>
+            星云科技 Q3 业绩报告
+            <span class="dl-ai-tag">✦ AI</span>
+          </div>
+          <div style="color:#6B7280">2,847</div>
+          <div style="color:#6B7280">昨天 14:32</div>
+          <div class="dl-status-done">✓ 已生成</div>
+        </div>
+        <div class="dl-row" onclick="openDemo('poster')">
+          <div class="dl-name">
+            <div class="dl-icon article">🧠</div>
+            深度工作：注意力时代的核心竞争力
+            <span class="dl-ai-tag">✦ AI</span>
+          </div>
+          <div style="color:#6B7280">3,200</div>
+          <div style="color:#6B7280">3 天前</div>
+          <div class="dl-status-done">✓ 已生成</div>
+        </div>
+        <div id="dynamicList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =====================================================
+     EDITOR VIEW
+     ===================================================== -->
+<div id="editorView">
+
+  <!-- Top bar -->
+  <div class="ed-topbar">
+    <button class="back-btn" onclick="showHub()">← 返回主站</button>
+    <input class="ed-title-input" id="edTitle" type="text" value="新建文档" placeholder="输入文档标题…" oninput="markSaved()" />
+    <span class="save-status" id="saveStatus">编辑中…</span>
+    <button class="gen-now-btn" onclick="manualGenerate()">✦ 立即生成信息图</button>
+  </div>
+
+  <!-- Body -->
+  <div class="ed-body">
+
+    <!-- Left -->
+    <div class="ed-left">
+
+      <!-- Char progress -->
+      <div class="char-prog-card">
+        <div class="char-prog-top">
+          <span class="char-prog-label">内容进度</span>
+          <span class="char-prog-num"><span id="charCount">0</span> / 800 字符</span>
+        </div>
+        <div class="prog-bg"><div class="prog-fill" id="progFill"></div></div>
+        <div class="char-hint" id="charHint">再输入 <strong id="charNeeded">800</strong> 个字符，AI 将自动生成智能信息图</div>
+      </div>
+
+      <!-- Pipeline -->
+      <div class="pipeline-card" id="pipelineCard">
+        <div class="pipeline-title">✦ AI 正在分析文档，生成信息图…</div>
+        <div class="p-steps">
+          <div class="p-step pending" id="ps1">
+            <div class="p-step-icon">📖</div><span>文档语义分析</span><span class="p-step-prog" id="pp1">等待中</span>
+          </div>
+          <div class="p-step pending" id="ps2">
+            <div class="p-step-icon">🎯</div><span>关键信息提取</span><span class="p-step-prog" id="pp2">等待中</span>
+          </div>
+          <div class="p-step pending" id="ps3">
+            <div class="p-step-icon">🎨</div><span>视觉布局规划</span><span class="p-step-prog" id="pp3">等待中</span>
+          </div>
+          <div class="p-step pending" id="ps4">
+            <div class="p-step-icon">⚡</div><span>SVG 渲染生成</span><span class="p-step-prog" id="pp4">等待中</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Restore bar -->
+      <div class="restore-bar" id="restoreBar">
+        <span>✦ 信息图已关闭</span>
+        <button class="restore-btn" onclick="restoreCard()">重新显示</button>
+      </div>
+
+      <!-- Infographic Card -->
+      <div class="info-card" id="infoCard">
+        <!-- Collapsed header -->
+        <div class="card-header" onclick="toggleCard()">
+          <span class="ai-badge">✦ AI</span>
+          <span class="card-title-lbl" id="cardTitleLbl">摘要</span>
+          <span class="card-teaser" id="cardTeaser">点击展开，查看 AI 智能信息图</span>
+          <button class="toggle-btn">
+            <span id="toggleTxt">展开看看</span>
+            <i class="t-icon" id="toggleIco">▾</i>
+          </button>
+        </div>
+
+        <!-- Expanded body -->
+        <div class="card-body" id="cardBody">
+
+          <!-- Edit panel -->
+          <div class="edit-panel" id="editPanel">
+            <div class="edit-tabs">
+              <button class="edit-tab active" onclick="switchTab('text',this)">✏️ 编辑文字</button>
+              <button class="edit-tab" onclick="switchTab('style',this)">🎨 整体风格</button>
+            </div>
+            <div id="tabText">
+              <div class="edit-fields">
+                <div class="ef"><label>文档标题</label><input id="ef_title" type="text" oninput="liveEdit('svTitle',this.value)"/></div>
+                <div class="ef"><label>关键词 1</label><input id="ef_kw1"   type="text" oninput="liveEdit('svKw1',this.value)"/></div>
+                <div class="ef"><label>关键词 2</label><input id="ef_kw2"   type="text" oninput="liveEdit('svKw2',this.value)"/></div>
+                <div class="ef"><label>关键词 3</label><input id="ef_kw3"   type="text" oninput="liveEdit('svKw3',this.value)"/></div>
+              </div>
+            </div>
+            <div id="tabStyle" style="display:none">
+              <div class="style-grid">
+                <div class="style-opt active" onclick="applyTheme('purple',this)">
+                  <div class="style-preview" style="background:linear-gradient(135deg,#7C6FE0,#A855F7)"></div>
+                  <div class="style-name">暮光紫</div>
+                </div>
+                <div class="style-opt" onclick="applyTheme('blue',this)">
+                  <div class="style-preview" style="background:linear-gradient(135deg,#2563EB,#0EA5E9)"></div>
+                  <div class="style-name">钉钉蓝</div>
+                </div>
+                <div class="style-opt" onclick="applyTheme('green',this)">
+                  <div class="style-preview" style="background:linear-gradient(135deg,#059669,#10B981)"></div>
+                  <div class="style-name">苔藓绿</div>
+                </div>
+                <div class="style-opt" onclick="applyTheme('amber',this)">
+                  <div class="style-preview" style="background:linear-gradient(135deg,#D97706,#F59E0B)"></div>
+                  <div class="style-name">琥珀棕</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Infographic SVG -->
+          <div class="card-svg-wrap" id="cardSVGWrap"></div>
+
+          <!-- Toolbar -->
+          <div class="card-toolbar">
+            <div class="tbar-left">
+              <button class="tbar-btn" onclick="toggleEditPanel()">✏️ 编辑</button>
+              <button class="tbar-btn" onclick="downloadSVG()">⬇️ 导出</button>
+            </div>
+            <div class="tbar-right">
+              <span class="gen-time-lbl" id="genTimeLbl"></span>
+              <button class="tbar-btn close" onclick="closeCard()">✕ 关闭</button>
+            </div>
+          </div>
+
+          <!-- Summary -->
+          <div class="card-summary" id="cardSummary">正在生成摘要…</div>
+        </div>
+      </div>
+
+      <!-- Document editor -->
+      <div class="doc-editor-card">
+        <div class="editor-fmt-bar">
+          <button class="fmt-btn" onclick="execCmd('formatBlock','h1')">H1</button>
+          <button class="fmt-btn" onclick="execCmd('formatBlock','h2')">H2</button>
+          <div class="fmt-sep"></div>
+          <button class="fmt-btn" onclick="execCmd('bold')"><b>B</b></button>
+          <button class="fmt-btn" onclick="execCmd('italic')"><i>I</i></button>
+          <button class="fmt-btn" onclick="execCmd('underline')"><u>U</u></button>
+          <div class="fmt-sep"></div>
+          <button class="fmt-btn" onclick="execCmd('insertUnorderedList')">• 列表</button>
+          <button class="fmt-btn" onclick="execCmd('insertHorizontalRule')">— 分割线</button>
+        </div>
+        <div
+          class="doc-editor"
+          id="docEditor"
+          contenteditable="true"
+          data-placeholder="在此输入文档内容… 达到 800 字符后，AI 将自动生成智能信息图。"
+          oninput="onInput()"
+        ></div>
+      </div>
+
+    </div><!-- /ed-left -->
+
+    <!-- Right panel -->
+    <div class="ed-right">
+      <div class="panel-card">
+        <div class="panel-card-title">文档统计</div>
+        <div class="stat-grid">
+          <div class="stat-item"><div class="stat-value" id="stChars">0</div><div class="stat-label">字符</div></div>
+          <div class="stat-item"><div class="stat-value" id="stWords">0</div><div class="stat-label">估算词数</div></div>
+          <div class="stat-item"><div class="stat-value" id="stParas">0</div><div class="stat-label">段落数</div></div>
+          <div class="stat-item"><div class="stat-value" id="stMins">0</div><div class="stat-label">阅读分钟</div></div>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-card-title">关键词</div>
+        <div class="kw-cloud" id="kwCloud"><span style="color:#C4B5FD;font-size:12px">输入内容后自动提取</span></div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-card-title">信息图状态</div>
+        <div class="infograph-status" id="igStatus">等待内容输入…</div>
+      </div>
+    </div>
+
+  </div><!-- /ed-body -->
+</div><!-- /editorView -->
+
+<!-- File input -->
+<input type="file" id="fileInput" accept=".txt,.md" style="display:none" onchange="handleUpload(event)" />
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======================================================
+   STATE
+   ====================================================== */
+let isExpanded   = false;
+let cardVisible  = false;
+let triggered    = false;
+let curTheme     = 'purple';
+let cachedKws    = [];
+let cachedSents  = [];
+let debTimer     = null;
+let toastTimer   = null;
+
+/* ======================================================
+   NAVIGATION
+   ====================================================== */
+function showHub() {
+  document.getElementById('hubView').style.display   = 'flex';
+  document.getElementById('editorView').style.display = 'none';
+}
+
+function showEditor(title, content) {
+  document.getElementById('hubView').style.display   = 'none';
+  document.getElementById('editorView').style.display = 'flex';
+
+  document.getElementById('edTitle').value     = title || '新建文档';
+  document.getElementById('saveStatus').textContent = '编辑中…';
+
+  const editor = document.getElementById('docEditor');
+  editor.innerHTML = '';
+  if (content) editor.innerText = content;
+
+  // Reset state
+  isExpanded  = false; cardVisible = false; triggered = false;
+  document.getElementById('infoCard').style.display   = 'none';
+  document.getElementById('restoreBar').classList.remove('show');
+  document.getElementById('pipelineCard').classList.remove('show');
+  document.getElementById('cardBody').classList.remove('show');
+  document.getElementById('toggleTxt').textContent     = '展开看看';
+  document.getElementById('toggleIco').classList.remove('up');
+  document.getElementById('cardTitleLbl').textContent  = '摘要';
+  document.getElementById('editPanel').classList.remove('show');
+
+  if (content) { onInput(); }
+  setTimeout(() => editor.focus(), 80);
+}
+
+function newDoc()  { showEditor('新建文档', ''); }
+
+function openDemo(type) {
+  const map = {
+    demo:   './smart-infographic-demo.html',
+    poster: './smart-infographic-poster.html'
+  };
+  window.open(map[type] || '#', '_blank');
+}
+
+function setNav(el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function filterDocs(q) {
+  const rows = document.querySelectorAll('#docList .dl-row, #dynamicList .dl-row');
+  rows.forEach(r => {
+    const name = r.querySelector('.dl-name')?.textContent?.toLowerCase() || '';
+    r.style.display = name.includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+/* ======================================================
+   FILE UPLOAD
+   ====================================================== */
+function handleUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const content = ev.target.result;
+    const title   = file.name.replace(/\.(txt|md)$/i, '');
+    showEditor(title, content);
+    addDocToHub(title, content.length, '刚刚');
+    toast(`📄 已上传：${file.name}`);
+  };
+  reader.readAsText(file, 'UTF-8');
+  e.target.value = '';
+}
+
+function addDocToHub(title, len, time) {
+  // Grid card
+  const grid  = document.getElementById('dynamicGrid');
+  const card  = document.createElement('div');
+  card.className = 'doc-card';
+  card.innerHTML = `
+    <div class="doc-thumb" style="background:linear-gradient(135deg,#ECFDF5,#A7F3D0)">📝</div>
+    <div class="doc-card-body">
+      <div class="doc-card-name">${esc(title)}</div>
+      <div class="doc-card-meta">${len.toLocaleString()} 字符 · ${time}</div>
+    </div>`;
+  card.onclick = () => showEditor(title, '');
+  grid.appendChild(card);
+
+  // List row
+  const list = document.getElementById('dynamicList');
+  const row  = document.createElement('div');
+  row.className = 'dl-row';
+  row.innerHTML = `
+    <div class="dl-name"><div class="dl-icon new">📝</div>${esc(title)}</div>
+    <div style="color:#6B7280">${len.toLocaleString()}</div>
+    <div style="color:#6B7280">${time}</div>
+    <div class="dl-status-pend">未生成</div>`;
+  row.onclick = () => showEditor(title, '');
+  list.appendChild(row);
+
+  // Update count
+  const cnt = document.getElementById('navDocCount');
+  cnt.textContent = parseInt(cnt.textContent || '2') + 1;
+}
+
+/* ======================================================
+   EDITOR INPUT
+   ====================================================== */
+function onInput() {
+  const text = document.getElementById('docEditor').innerText || '';
+  const len  = text.length;
+
+  // Stats
+  document.getElementById('charCount').textContent = len;
+  document.getElementById('stChars').textContent   = len;
+  document.getElementById('stWords').textContent   = Math.round(len / 2);
+  const paras = text.split('\n').filter(p => p.trim()).length;
+  document.getElementById('stParas').textContent   = paras;
+  document.getElementById('stMins').textContent    = Math.max(1, Math.round(len / 500));
+
+  // Progress bar
+  const pct  = Math.min(100, (len / 800) * 100);
+  const fill = document.getElementById('progFill');
+  fill.style.width = pct + '%';
+  if (len >= 800) {
+    fill.classList.add('done');
+    document.getElementById('charHint').innerHTML = '<strong style="color:#10B981">✓ 字符数已达到，信息图已自动生成！</strong>';
+  } else {
+    fill.classList.remove('done');
+    const need = 800 - len;
+    document.getElementById('charNeeded').textContent = need;
+    document.getElementById('charHint').innerHTML =
+      `再输入 <strong>${need}</strong> 个字符，AI 将自动生成智能信息图`;
+  }
+
+  // Debounce expensive ops
+  clearTimeout(debTimer);
+  debTimer = setTimeout(() => {
+    if (len > 30) {
+      cachedKws = extractKeywords(text, 8);
+      renderKwCloud(cachedKws);
+    }
+    if (len >= 800 && !triggered) {
+      triggered = true;
+      startPipeline(text);
+    }
+  }, 350);
+
+  markSaved();
+}
+
+function markSaved() {
+  document.getElementById('saveStatus').textContent = '已自动保存';
+}
+
+function execCmd(cmd, val) {
+  document.execCommand(cmd, false, val || null);
+  document.getElementById('docEditor').focus();
+}
+
+/* ======================================================
+   KEYWORD & SENTENCE EXTRACTION
+   ====================================================== */
+const STOPS = new Set([
+  '的','了','在','是','我','有','和','就','不','人','都','一','上','也','很','到','说',
+  '要','去','你','会','着','好','自己','这','那','但','从','被','于','为','这个','这些',
+  '那些','可以','因为','所以','如果','虽然','但是','然后','还是','通过','对于','进行',
+  '需要','已经','同时','此外','因此','关于','包括','主要','方面','问题','发展','可能',
+  '应该','一种','这种','实现','我们','他们','没有','什么','时候','为什么','一个','就是'
+]);
+
+function extractKeywords(text, n) {
+  const freq = {};
+  const segs  = text.split(/[\s，。！？、；：""''（）【】《》.,!?;:'"()\[\]\n]+/);
+  for (const seg of segs) {
+    if (seg.length < 2) continue;
+    // Whole segment boost
+    if (seg.length >= 2 && seg.length <= 8 && /[\u4e00-\u9fffa-zA-Z]/.test(seg) && !STOPS.has(seg)) {
+      freq[seg] = (freq[seg] || 0) + 2;
+    }
+    // Bigrams & trigrams for Chinese
+    for (let len = 2; len <= 3; len++) {
+      for (let i = 0; i <= seg.length - len; i++) {
+        const w = seg.substring(i, i + len);
+        if (/[\u4e00-\u9fff]{2}/.test(w) && !STOPS.has(w)) {
+          freq[w] = (freq[w] || 0) + 1;
+        }
+      }
+    }
+  }
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([w])=>w);
+}
+
+function extractSentences(text, n) {
+  const sents = text.split(/[。！？\n]+/).map(s=>s.trim()).filter(s=>s.length>8);
+  const out = []; const seen = new Set();
+  for (const s of sents) {
+    const t = s.length > 26 ? s.substring(0,25)+'…' : s;
+    if (!seen.has(t)) { seen.add(t); out.push(t); if (out.length >= n) break; }
+  }
+  return out;
+}
+
+function renderKwCloud(kws) {
+  document.getElementById('kwCloud').innerHTML = kws.length
+    ? kws.map(k=>`<span class="kw-tag">${esc(k)}</span>`).join('')
+    : '<span style="color:#C4B5FD;font-size:12px">输入内容后自动提取</span>';
+}
+
+/* ======================================================
+   PIPELINE ANIMATION
+   ====================================================== */
+const PIPELINE_STEPS = [
+  { id:'ps1', prog:'pp1', icon:'📖', label:'分析中…', done:'完成' },
+  { id:'ps2', prog:'pp2', icon:'🎯', label:'提取中…', done:'完成' },
+  { id:'ps3', prog:'pp3', icon:'🎨', label:'规划中…', done:'完成' },
+  { id:'ps4', prog:'pp4', icon:'⚡', label:'渲染中…', done:'完成' },
+];
+const DELAYS_START = [0,   900,  1800, 2700];
+const DELAYS_DONE  = [800, 1700, 2600, 3500];
+
+function startPipeline(text) {
+  document.getElementById('igStatus').textContent  = 'AI 正在生成信息图…';
+  document.getElementById('igStatus').className    = 'infograph-status';
+  document.getElementById('pipelineCard').classList.add('show');
+
+  PIPELINE_STEPS.forEach((s,i) => {
+    const el = document.getElementById(s.id);
+    const pp = document.getElementById(s.prog);
+    el.className = 'p-step pending';
+    el.querySelector('.p-step-icon').textContent = s.icon;
+    pp.textContent = '等待中';
+
+    setTimeout(() => {
+      el.className = 'p-step active';
+      el.querySelector('.p-step-icon').textContent = '⟳';
+      pp.textContent = s.label;
+    }, DELAYS_START[i]);
+
+    setTimeout(() => {
+      el.className = 'p-step done';
+      el.querySelector('.p-step-icon').textContent = '✓';
+      pp.textContent = s.done;
+    }, DELAYS_DONE[i]);
+  });
+
+  setTimeout(() => {
+    document.getElementById('pipelineCard').classList.remove('show');
+    renderCard(text);
+  }, 4200);
+}
+
+function manualGenerate() {
+  const text = document.getElementById('docEditor').innerText || '';
+  if (text.length < 30) { toast('请先输入至少 30 个字符的内容'); return; }
+  triggered = true;
+  startPipeline(text);
+}
+
+/* ======================================================
+   CARD RENDERING
+   ====================================================== */
+const THEMES = {
+  purple: { h0:'#5B4FCF', h1:'#7C6FE0', accent:'#A855F7', tag:'#DDD6FE', tagTxt:'#5B4FCF' },
+  blue:   { h0:'#1D4ED8', h1:'#2563EB', accent:'#0EA5E9', tag:'#BFDBFE', tagTxt:'#1D4ED8' },
+  green:  { h0:'#065F46', h1:'#059669', accent:'#10B981', tag:'#A7F3D0', tagTxt:'#065F46' },
+  amber:  { h0:'#92400E', h1:'#D97706', accent:'#F59E0B', tag:'#FDE68A', tagTxt:'#92400E' },
+};
+const THEME_NAMES = { purple:'暮光紫', blue:'钉钉蓝', green:'苔藓绿', amber:'琥珀棕' };
+
+function renderCard(text) {
+  const title = document.getElementById('edTitle').value || '文档标题';
+  const kws   = extractKeywords(text, 8);
+  const sents = extractSentences(text, 3);
+  const chars = text.length;
+  const mins  = Math.max(1, Math.round(chars / 500));
+
+  cachedKws   = kws;
+  cachedSents = sents;
+
+  const svg = makeSVG({ title, kws, sents, chars, mins });
+  document.getElementById('cardSVGWrap').innerHTML = svg;
+
+  // Populate edit fields
+  document.getElementById('ef_title').value = title;
+  document.getElementById('ef_kw1').value   = kws[0] || '';
+  document.getElementById('ef_kw2').value   = kws[1] || '';
+  document.getElementById('ef_kw3').value   = kws[2] || '';
+
+  // Teaser (collapsed)
+  const top3 = kws.slice(0,3).join('、');
+  document.getElementById('cardTeaser').innerHTML =
+    `✦ <strong>${esc(top3)}</strong> · ${esc(sents[0] || '点击展开查看信息图')}`;
+
+  // Summary
+  document.getElementById('cardSummary').innerHTML = buildSummary(title, kws, sents, chars, mins);
+
+  // Gen time
+  const d = new Date();
+  document.getElementById('genTimeLbl').textContent =
+    `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} AI 生成`;
+
+  // Show card
+  cardVisible = true;
+  document.getElementById('infoCard').style.display = 'block';
+  document.getElementById('restoreBar').classList.remove('show');
+  document.getElementById('igStatus').innerHTML = '<span class="done">✓ 已生成</span>';
+
+  toast('✦ 智能信息图已生成！点击展开查看');
+}
+
+function buildSummary(title, kws, sents, chars, mins) {
+  const kwSpans = kws.slice(0,5).map(k=>`<span style="background:#EDE9FE;color:#7C6FE0;padding:1px 7px;border-radius:8px;font-size:12px;margin:0 2px">${esc(k)}</span>`).join('');
+  const sentTxt = sents.map(s=>esc(s)).join(' · ');
+  return `
+    <p style="font-weight:700;color:#1a1a2e;margin-bottom:8px">📋 ${esc(title)}</p>
+    <p style="margin-bottom:8px;color:#4B5563">本文共 <strong>${chars}</strong> 字符，预计阅读 <strong>${mins}</strong> 分钟。</p>
+    <p style="margin-bottom:10px">核心关键词：${kwSpans}</p>
+    <p style="color:#6B7280;font-size:12.5px;line-height:1.7">${sentTxt}</p>`;
+}
+
+/* ======================================================
+   SVG GENERATION
+   ====================================================== */
+function makeSVG({ title, kws, sents, chars, mins }) {
+  const t   = THEMES[curTheme];
+  const sT  = trunc(title, 12);
+  const sT2 = title.length > 12 ? trunc(title.substring(12), 10) : '';
+
+  // Keyword tags (right column, up to 6)
+  const kwHtml = kws.slice(0,6).map((k,i) => {
+    const y = 68 + i * 30;
+    return `
+      <rect x="420" y="${y}" width="112" height="21" rx="10.5" fill="${t.tag}"/>
+      <text x="476" y="${y+14}" text-anchor="middle" font-size="11" fill="${t.tagTxt}" font-family="-apple-system,PingFang SC,sans-serif" font-weight="600" id="svKw${i+1}">${esc(trunc(k,7))}</text>`;
+  }).join('');
+
+  // Key sentences (middle column)
+  const sentHtml = sents.slice(0,3).map((s,i) => {
+    const y  = 66 + i * 54;
+    const l1 = trunc(s, 13);
+    const l2 = s.length > 13 ? trunc(s.substring(13), 13) : '';
+    return `
+      <rect x="182" y="${y}" width="218" height="${l2?46:28}" rx="7" fill="rgba(255,255,255,0.08)"/>
+      <circle cx="194" cy="${y+9}" r="3" fill="${t.accent}"/>
+      <text x="202" y="${y+13}" font-size="11.5" fill="rgba(255,255,255,0.9)" font-family="-apple-system,PingFang SC,sans-serif">${esc(l1)}</text>
+      ${l2?`<text x="202" y="${y+28}" font-size="11.5" fill="rgba(255,255,255,0.7)" font-family="-apple-system,PingFang SC,sans-serif">${esc(l2)}</text>`:''}`;
+  }).join('');
+
+  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 546 252" style="width:100%;border-radius:10px;display:block">
+  <defs>
+    <linearGradient id="gHero" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${t.h0}"/>
+      <stop offset="100%" stop-color="${t.h1}"/>
+    </linearGradient>
+    <linearGradient id="gBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${t.h0}" stop-opacity=".88"/>
+      <stop offset="100%" stop-color="${t.h1}" stop-opacity=".72"/>
+    </linearGradient>
+    <clipPath id="cpL"><rect x="0"   y="0" width="175" height="252"/></clipPath>
+    <clipPath id="cpM"><rect x="180" y="0" width="222" height="252"/></clipPath>
+    <clipPath id="cpR"><rect x="408" y="0" width="138" height="252"/></clipPath>
+  </defs>
+
+  <!-- Full background -->
+  <rect width="546" height="252" rx="10" fill="url(#gBg)"/>
+
+  <!-- Left column -->
+  <rect x="0" y="0" width="175" height="252" rx="10" fill="url(#gHero)"/>
+  <rect x="165" y="0" width="10" height="252" fill="url(#gHero)"/>
+
+  <!-- Top accent line -->
+  <rect x="14" y="14" width="146" height="2.5" rx="1.25" fill="rgba(255,255,255,0.28)"/>
+
+  <!-- Badge -->
+  <text x="20" y="38" font-size="10.5" fill="rgba(255,255,255,0.55)" font-family="-apple-system,PingFang SC,sans-serif" font-weight="600">✦ AI 智能信息图</text>
+
+  <!-- Title -->
+  <text id="svTitle" x="20" y="62" font-size="15" fill="#fff" font-family="-apple-system,PingFang SC,sans-serif" font-weight="800" clip-path="url(#cpL)">${esc(sT)}</text>
+  ${sT2?`<text x="20" y="80" font-size="13" fill="rgba(255,255,255,0.75)" font-family="-apple-system,PingFang SC,sans-serif" font-weight="600" clip-path="url(#cpL)">${esc(sT2)}</text>`:''}
+
+  <!-- Divider -->
+  <rect x="14" y="96" width="146" height="1" rx=".5" fill="rgba(255,255,255,0.18)"/>
+
+  <!-- Char stat -->
+  <rect x="14" y="104" width="146" height="52" rx="9" fill="rgba(255,255,255,0.1)"/>
+  <text x="87" y="124" text-anchor="middle" font-size="22" fill="#fff" font-family="-apple-system,PingFang SC,sans-serif" font-weight="800">${chars}</text>
+  <text x="87" y="143" text-anchor="middle" font-size="10.5" fill="rgba(255,255,255,0.55)" font-family="-apple-system,PingFang SC,sans-serif">字符总量</text>
+
+  <!-- Sub stats -->
+  <rect x="14"  y="164" width="68" height="50" rx="9" fill="rgba(255,255,255,0.1)"/>
+  <text x="48"  y="184" text-anchor="middle" font-size="20" fill="#fff" font-family="-apple-system,PingFang SC,sans-serif" font-weight="800">${kws.length}</text>
+  <text x="48"  y="202" text-anchor="middle" font-size="10.5" fill="rgba(255,255,255,0.55)" font-family="-apple-system,PingFang SC,sans-serif">关键词</text>
+
+  <rect x="90"  y="164" width="70" height="50" rx="9" fill="rgba(255,255,255,0.1)"/>
+  <text x="125" y="184" text-anchor="middle" font-size="20" fill="#fff" font-family="-apple-system,PingFang SC,sans-serif" font-weight="800">${mins}</text>
+  <text x="125" y="202" text-anchor="middle" font-size="10.5" fill="rgba(255,255,255,0.55)" font-family="-apple-system,PingFang SC,sans-serif">阅读分钟</text>
+
+  <text x="87" y="242" text-anchor="middle" font-size="9.5" fill="rgba(255,255,255,0.3)" font-family="-apple-system,PingFang SC,sans-serif">AI Generated · Smart Infographic</text>
+
+  <!-- Middle column: sentences -->
+  <text x="194" y="46" font-size="11.5" fill="rgba(255,255,255,0.6)" font-family="-apple-system,PingFang SC,sans-serif" font-weight="700">核心要点</text>
+  <rect x="194" y="50" width="38" height="2" rx="1" fill="${t.accent}"/>
+  ${sentHtml}
+
+  <!-- Right column: keywords -->
+  <text x="422" y="46" font-size="11.5" fill="rgba(255,255,255,0.6)" font-family="-apple-system,PingFang SC,sans-serif" font-weight="700">关键词</text>
+  <rect x="422" y="50" width="30" height="2" rx="1" fill="${t.accent}"/>
+  ${kwHtml}
+</svg>`;
+}
+
+/* ======================================================
+   CARD INTERACTIONS
+   ====================================================== */
+function toggleCard() {
+  isExpanded = !isExpanded;
+  document.getElementById('cardBody').classList.toggle('show', isExpanded);
+  document.getElementById('toggleIco').classList.toggle('up', isExpanded);
+  document.getElementById('toggleTxt').textContent      = isExpanded ? '收起' : '展开看看';
+  document.getElementById('cardTitleLbl').textContent   = isExpanded ? '智能信息图' : '摘要';
+  document.getElementById('cardTeaser').style.display   = isExpanded ? 'none' : '';
+  if (!isExpanded) document.getElementById('editPanel').classList.remove('show');
+}
+
+function closeCard() {
+  // Collapse first
+  if (isExpanded) {
+    isExpanded = false;
+    document.getElementById('cardBody').classList.remove('show');
+    document.getElementById('toggleIco').classList.remove('up');
+    document.getElementById('cardTitleLbl').textContent  = '摘要';
+    document.getElementById('toggleTxt').textContent     = '展开看看';
+    document.getElementById('cardTeaser').style.display  = '';
+    document.getElementById('editPanel').classList.remove('show');
+  }
+  document.getElementById('infoCard').style.display = 'none';
+  document.getElementById('restoreBar').classList.add('show');
+  cardVisible = false;
+}
+
+function restoreCard() {
+  cardVisible = true;
+  document.getElementById('infoCard').style.display = 'block';
+  document.getElementById('restoreBar').classList.remove('show');
+}
+
+function toggleEditPanel() {
+  document.getElementById('editPanel').classList.toggle('show');
+}
+
+function switchTab(tab, el) {
+  document.querySelectorAll('.edit-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tabText').style.display  = tab === 'text'  ? '' : 'none';
+  document.getElementById('tabStyle').style.display = tab === 'style' ? '' : 'none';
+}
+
+function liveEdit(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function applyTheme(name, el) {
+  document.querySelectorAll('.style-opt').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  curTheme = name;
+  // Re-render SVG with new theme
+  const text = document.getElementById('docEditor').innerText || '';
+  if (cachedKws.length || text.length > 30) {
+    const title = document.getElementById('edTitle').value || '文档标题';
+    const kws   = cachedKws.length ? cachedKws : extractKeywords(text, 8);
+    const sents = cachedSents.length ? cachedSents : extractSentences(text, 3);
+    const chars = text.length;
+    const mins  = Math.max(1, Math.round(chars / 500));
+    document.getElementById('cardSVGWrap').innerHTML = makeSVG({ title, kws, sents, chars, mins });
+  }
+  toast(`已切换风格：${THEME_NAMES[name]}`);
+}
+
+function downloadSVG() {
+  const svg = document.getElementById('hubSVG');
+  if (!svg) { toast('请先生成信息图'); return; }
+  const s    = new XMLSerializer().serializeToString(svg);
+  const blob = new Blob([s], { type: 'image/svg+xml;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const name = document.getElementById('edTitle').value || '文档';
+  a.href = url; a.download = `${name}-信息图.svg`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('SVG 已下载');
+}
+
+/* ======================================================
+   UTILS
+   ====================================================== */
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function trunc(s, n) { if (!s) return ''; return s.length > n ? s.substring(0, n-1)+'…' : s; }
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+</script>
+</body>
+</html>
