@@ -728,116 +728,286 @@ function clearApiKey() {
 }
 
 /* ======================================================
+   AI DATA QUALITY SANITIZER
+   ====================================================== */
+function sanitizeAiData(data) {
+  if (!data || typeof data !== 'object') return data;
+
+  // Deep-trim all string values
+  function deepTrim(v) {
+    if (typeof v === 'string') return v.trim();
+    if (Array.isArray(v))     return v.map(deepTrim);
+    if (v && typeof v === 'object') {
+      const r = {};
+      for (const [k, x] of Object.entries(v)) r[k] = deepTrim(x);
+      return r;
+    }
+    return v;
+  }
+  data = deepTrim(data);
+
+  // Truncate at clean boundary (punctuation or char limit)
+  function cleanCut(s, maxLen) {
+    if (!s || s.length <= maxLen) return s;
+    const puncts = '。！？；，、.!?;,';
+    for (let i = maxLen; i >= Math.max(maxLen - 5, 1); i--) {
+      if (puncts.includes(s[i - 1])) return s.slice(0, i);
+    }
+    return s.slice(0, maxLen);
+  }
+
+  // Validate: must be at least minLen chars and not end on trailing punctuation/particles
+  const particles = new Set(['的','了','和','或','与','及','在','是','也','都','而','但']);
+  function isComplete(s, minLen) {
+    if (!s || s.length < minLen) return false;
+    const last = s[s.length - 1];
+    if (particles.has(last)) return false;
+    return true;
+  }
+
+  // Clean keywords: 2-6 chars, complete words
+  if (Array.isArray(data.keywords)) {
+    data.keywords = data.keywords
+      .map(k => cleanCut(String(k || ''), 6))
+      .filter(k => isComplete(k, 2));
+  }
+
+  // Clean insights: complete sentences 10+ chars
+  if (Array.isArray(data.insights)) {
+    data.insights = data.insights
+      .map(s => cleanCut(String(s || ''), 45))
+      .filter(s => isComplete(s, 10));
+  }
+
+  // Dashboard-specific field cleaning
+  if (data.layout === 'dashboard') {
+    if (data.hero) {
+      data.hero.label  = cleanCut(data.hero.label  || '', 8);
+      data.hero.badge  = cleanCut(data.hero.badge  || '', 14);
+      data.hero.change = cleanCut(data.hero.change || '', 8);
+    }
+    if (Array.isArray(data.metrics)) {
+      data.metrics = data.metrics.map(m => ({
+        ...m,
+        label:    cleanCut(m.label    || '', 7),
+        sublabel: cleanCut(m.sublabel || '', 10),
+      }));
+    }
+    if (Array.isArray(data.bars)) {
+      data.bars = data.bars.map(b => ({
+        ...b,
+        name:  cleanCut(b.name  || '', 10),
+        value: cleanCut(String(b.value || ''), 10),
+        trend: cleanCut(b.trend || '', 6),
+      }));
+    }
+    if (Array.isArray(data.risks)) {
+      data.risks = data.risks.map(r => ({
+        ...r,
+        title:  cleanCut(r.title  || '', 12),
+        detail: cleanCut(r.detail || '', 14),
+        value:  cleanCut(String(r.value || ''), 8),
+      })).filter(r => isComplete(r.title, 3));
+    }
+    if (data.milestone) {
+      data.milestone.context = cleanCut(data.milestone.context || '', 16);
+      data.milestone.badge   = cleanCut(data.milestone.badge   || '', 14);
+    }
+    if (data.outlook) {
+      data.outlook.label   = cleanCut(data.outlook.label   || '', 12);
+      if (Array.isArray(data.outlook.actions)) {
+        data.outlook.actions = data.outlook.actions
+          .map(a => cleanCut(String(a || ''), 8))
+          .filter(a => isComplete(a, 2));
+      }
+    }
+  }
+
+  // Poster-specific field cleaning
+  if (data.layout === 'poster') {
+    if (data.left) {
+      data.left.category   = cleanCut(data.left.category   || '', 6);
+      data.left.tagline    = cleanCut(data.left.tagline    || '', 12);
+      data.left.definition = cleanCut(data.left.definition || '', 65);
+      if (data.left.contrastA) data.left.contrastA.name = cleanCut(data.left.contrastA.name || '', 5);
+      if (data.left.contrastB) data.left.contrastB.name = cleanCut(data.left.contrastB.name || '', 5);
+      if (Array.isArray(data.left.concepts)) {
+        data.left.concepts = data.left.concepts
+          .map(c => cleanCut(String(c || ''), 6))
+          .filter(c => isComplete(c, 2));
+      }
+    }
+    if (data.center) {
+      data.center.quote       = cleanCut(data.center.quote       || '', 18);
+      data.center.quote2      = cleanCut(data.center.quote2      || '', 18);
+      data.center.quoteSource = cleanCut(data.center.quoteSource || '', 14);
+      data.center.quoteContext= cleanCut(data.center.quoteContext|| '', 40);
+      ['cardA','cardB'].forEach(k => {
+        if (data.center[k]) {
+          data.center[k].title  = cleanCut(data.center[k].title  || '', 8);
+          data.center[k].body   = cleanCut(data.center[k].body   || '', 45);
+          data.center[k].source = cleanCut(data.center[k].source || '', 14);
+        }
+      });
+      if (data.center.tagGroup) {
+        data.center.tagGroup.label = cleanCut(data.center.tagGroup.label || '', 10);
+        if (Array.isArray(data.center.tagGroup.items)) {
+          data.center.tagGroup.items = data.center.tagGroup.items.map(it => ({
+            name: cleanCut(it.name || '', 5),
+            desc: cleanCut(it.desc || '', 5),
+          })).filter(it => isComplete(it.name, 2));
+        }
+      }
+      if (Array.isArray(data.center.steps)) {
+        data.center.steps = data.center.steps
+          .map(s => cleanCut(String(s || ''), 10))
+          .filter(s => isComplete(s, 3));
+      }
+    }
+    if (data.right) {
+      if (Array.isArray(data.right.stats)) {
+        data.right.stats = data.right.stats.map(s => ({
+          ...s,
+          label:    cleanCut(s.label    || '', 10),
+          sublabel: cleanCut(s.sublabel || '', 12),
+        }));
+      }
+      if (Array.isArray(data.right.refs)) {
+        data.right.refs = data.right.refs.map(r => ({
+          title:  cleanCut(r.title  || '', 18),
+          author: cleanCut(r.author || '', 12),
+        })).filter(r => r.title.length >= 2);
+      }
+    }
+  }
+
+  return data;
+}
+
+/* ======================================================
    CLAUDE API CALL
    ====================================================== */
 async function callClaudeAPI(text, title) {
   const key = getApiKey();
   if (!key) return null;
 
-  const prompt = `请仔细阅读以下文档，完成两步分析：
+  const prompt = `请按照【两步走】方式处理以下文档，生成高质量信息图数据。
 
-第一步：统计文档中出现的具体数字数据（数字+单位/百分比，如：31%、4.2亿、93.2%、营收1.9亿等）的总出现次数。
+━━━ 第一步：文档深度分析 ━━━
+在生成 JSON 之前，请先在 <analysis> 标签内完成以下分析（自由书写，无需 JSON 格式）：
 
-第二步：根据数据出现频率选择信息图类型：
-- 数据出现次数 ≥ 10 次 → 选择 "dashboard"（数据仪表盘型）
-- 数据出现次数 < 10 次 → 选择 "poster"（知识海报型）
+1. 【核心主题】用 1-2 句完整中文句子概括文档核心内容。
+2. 【关键词梳理】列出 8 个最核心的词汇。要求：每个必须是 2-6 字的完整词语。
+   ✅ 正确示例：注意力残留、深度工作、认知带宽、刻意练习
+   ❌ 错误示例：注意力残（截断）、深度（过短无意义）、工作的（以虚词结尾）
+3. 【核心观点】提炼 4 条核心观点。要求：每条必须是有主语+谓语的完整句子（15-40字）。
+   ✅ 正确示例：深度工作者在无干扰状态下的知识产出质量是浮浅工作模式的 2.5 倍。
+   ❌ 错误示例：深度工作的重要（无谓语）、注意力被稀释的（不完整）
+4. 【数据清单】逐一列出文档中所有数字指标（格式：数字+单位，如 4.2亿、93.2%、+31%）。
+5. 【布局决策】统计以上数字数据共出现几次，说明选择 dashboard 还是 poster 及原因。
 
-【如果选择 dashboard】请以 JSON 格式返回（只返回 JSON，不要任何其他文字）：
+━━━ 第二步：生成信息图 JSON ━━━
+基于第一步的分析，严格按以下格式生成 JSON（只输出 JSON 对象，不含其他说明文字）。
+
+⚠️ 文字质量硬性要求（每个字段填写前必须自查）：
+• 词语字段：2-6 字的完整词语，不在词语内部截断，不以助词/虚词结尾
+• 短语字段：完整名词短语（如"客户留存率"而非"客户留存"）
+• 句子字段：必须有主语+谓语，不以"的""了""和""等"等词结尾
+• 字数限制：宁可写更短的完整表述，绝不截断词语或句子
+
+【如果选择 dashboard】：
 {
   "layout": "dashboard",
-  "summary": "一句话总结文档核心内容（25字以内，不要重复标题）",
+  "summary": "一句话总结（20字内，完整句子，有主谓宾）",
   "hero": {
-    "value": "文档中最核心的一个数字指标（含单位，如4.2亿）",
-    "label": "该指标名称（6字内）",
-    "change": "同比或环比变化（如+31%，无则空字符串）",
-    "badge": "最重要亮点或里程碑描述（12字内）"
+    "value": "最核心数字指标（含单位，如4.2亿）",
+    "label": "指标名称（4-6字，完整名词）",
+    "change": "变化幅度（如+31%，无则空字符串）",
+    "badge": "亮点描述（8-12字，完整短语）"
   },
   "metrics": [
-    { "value": "核心指标数字（含单位）", "label": "指标名称（5字内）", "sublabel": "补充说明（8字内）" },
-    { "value": "核心指标数字（含单位）", "label": "指标名称（5字内）", "sublabel": "补充说明（8字内）" },
-    { "value": "核心指标数字（含单位）", "label": "指标名称（5字内）", "sublabel": "补充说明（8字内）" }
+    { "value": "指标数字（含单位）", "label": "指标名称（4-5字完整名词）", "sublabel": "说明（4-8字完整短语）" },
+    { "value": "指标数字（含单位）", "label": "指标名称（4-5字完整名词）", "sublabel": "说明（4-8字完整短语）" },
+    { "value": "指标数字（含单位）", "label": "指标名称（4-5字完整名词）", "sublabel": "说明（4-8字完整短语）" }
   ],
   "bars": [
-    { "name": "分类名称（8字内）", "value": "数值", "pct": 90, "trend": "+X%（无则空字符串）" },
-    { "name": "分类名称（8字内）", "value": "数值", "pct": 50, "trend": "" },
-    { "name": "分类名称（8字内）", "value": "数值", "pct": 25, "trend": "" }
+    { "name": "分类名称（4-8字完整名词）", "value": "数值（含单位）", "pct": 数字0-100, "trend": "变化（无则空字符串）" },
+    { "name": "分类名称（4-8字完整名词）", "value": "数值（含单位）", "pct": 数字0-100, "trend": "" },
+    { "name": "分类名称（4-8字完整名词）", "value": "数值（含单位）", "pct": 数字0-100, "trend": "" }
   ],
   "risks": [
-    { "title": "风险点或关注事项（10字内）", "detail": "具体说明（12字内）", "value": "关键数字（无则空字符串）" },
-    { "title": "风险点或关注事项（10字内）", "detail": "具体说明（12字内）", "value": "" }
+    { "title": "风险事项（6-10字完整名词短语）", "detail": "说明（8-12字，完整短语）", "value": "数字（无则空字符串）" },
+    { "title": "风险事项（6-10字完整名词短语）", "detail": "说明（8-12字，完整短语）", "value": "" }
   ],
   "milestone": {
-    "value": "里程碑核心数字或成就（6字内，如+68%）",
-    "context": "简短说明（15字内）",
-    "badge": "额外成就描述（12字内，无则空字符串）"
+    "value": "里程碑数字或成就（4-6字）",
+    "context": "说明（10-15字，完整短语）",
+    "badge": "成就描述（8-12字，无则空字符串）"
   },
   "outlook": {
-    "value": "未来目标值或展望数字（6字内）",
-    "label": "展望说明（10字内）",
-    "actions": ["行动措施1（6字内）", "行动措施2（6字内）", "行动措施3（6字内）"]
+    "value": "目标值（4-6字）",
+    "label": "展望说明（6-10字，完整短语）",
+    "actions": ["行动1（4-6字完整动词短语）", "行动2（4-6字）", "行动3（4-6字）"]
   },
-  "keywords": ["词1","词2","词3","词4","词5","词6"],
-  "insights": ["完整洞察句子1（15-35字）","洞察句子2","洞察句子3","洞察句子4"]
+  "keywords": ["完整词语1","词语2","词语3","词语4","词语5","词语6"],
+  "insights": ["完整洞察句子1（15-40字，有主谓宾）","洞察句子2","洞察句子3","洞察句子4"]
 }
 
-【如果选择 poster】请以 JSON 格式返回（只返回 JSON，不要任何其他文字）：
+【如果选择 poster】：
 {
   "layout": "poster",
-  "summary": "文档摘要（50字以内）",
+  "summary": "文档摘要（30-50字，完整段落）",
   "left": {
-    "category": "文档领域类型（生产力/管理/设计/商业等，5字内）",
-    "tagline": "核心主题（10字以内）",
-    "definition": "核心概念的完整定义（40-60字，用于引用展示）",
-    "contrastA": { "name": "正向/核心概念（4字内）", "desc": "特征（5字内）" },
-    "contrastB": { "name": "对立/次要概念（4字内）", "desc": "特征（5字内）" },
-    "concepts": ["核心概念词1（4字内）","词2","词3","词4","词5"]
+    "category": "领域类型（2-5字，如：生产力、商业分析、设计）",
+    "tagline": "核心主题（6-10字，完整短语）",
+    "definition": "核心概念定义（40-60字，完整段落，用于引用）",
+    "contrastA": { "name": "正向概念（2-4字完整词）", "desc": "特征（3-5字完整短语）" },
+    "contrastB": { "name": "对立概念（2-4字完整词）", "desc": "特征（3-5字完整短语）" },
+    "concepts": ["概念词1（2-5字完整词）","词2","词3","词4","词5"]
   },
   "center": {
-    "quote": "第一行核心金句（15字内，最具代表性的观点）",
-    "quote2": "第二行金句（15字内，可为空字符串）",
-    "quoteSource": "金句来源说明（12字内）",
-    "quoteContext": "金句背景与意义（35字以内）",
+    "quote": "核心金句第1行（10-15字，完整短句）",
+    "quote2": "金句第2行（10-15字，完整短句，无则空字符串）",
+    "quoteSource": "来源（8-12字，如：深度工作核心论断）",
+    "quoteContext": "背景说明（25-35字，完整句子）",
     "cardA": {
-      "title": "核心洞察标题A（6字内）",
-      "body": "洞察详细内容（2-3句话，总40字以内）",
-      "source": "理论来源或作者（12字内，无则空字符串）"
+      "title": "洞察标题A（4-6字完整名词短语）",
+      "body": "内容（25-40字，2-3句完整句子）",
+      "source": "来源（8-12字，无则空字符串）"
     },
     "cardB": {
-      "title": "核心洞察标题B（6字内）",
-      "body": "洞察详细内容（2-3句话，总40字以内）",
-      "source": "理论来源或作者（12字内，无则空字符串）"
+      "title": "洞察标题B（4-6字完整名词短语）",
+      "body": "内容（25-40字，2-3句完整句子）",
+      "source": "来源（8-12字，无则空字符串）"
     },
     "tagGroup": {
-      "label": "关键策略/方法分类名称（8字内）",
+      "label": "分类标题（4-8字，完整名词短语）",
       "items": [
-        { "name": "策略1（4字内）", "desc": "说明（4字内）" },
-        { "name": "策略2（4字内）", "desc": "说明（4字内）" },
-        { "name": "策略3（4字内）", "desc": "说明（4字内）" },
-        { "name": "策略4（4字内）", "desc": "说明（4字内）" }
+        { "name": "策略名（2-4字完整词）", "desc": "说明（2-4字完整短语）" },
+        { "name": "策略名（2-4字完整词）", "desc": "说明（2-4字完整短语）" },
+        { "name": "策略名（2-4字完整词）", "desc": "说明（2-4字完整短语）" },
+        { "name": "策略名（2-4字完整词）", "desc": "说明（2-4字完整短语）" }
       ]
     },
-    "steps": ["第一步核心动作（8字内）","第二步（8字内）","第三步（8字内）","第四步（8字内）"]
+    "steps": ["步骤1（5-8字，完整动词短语）","步骤2（5-8字）","步骤3（5-8字）","步骤4（5-8字）"]
   },
   "right": {
     "stats": [
-      { "value": "关键数字（含单位，如4h或2.5×）", "label": "指标说明（8字内）", "sublabel": "补充（10字内）" },
-      { "value": "关键数字", "label": "指标说明（8字内）", "sublabel": "补充（10字内）" },
-      { "value": "关键数字", "label": "指标说明（8字内）", "sublabel": "补充（10字内）" }
+      { "value": "数字（含单位，如4h、2.5×）", "label": "指标名（4-8字完整名词）", "sublabel": "补充（5-10字完整短语）" },
+      { "value": "数字（含单位）", "label": "指标名（4-8字完整名词）", "sublabel": "补充（5-10字完整短语）" },
+      { "value": "数字（含单位）", "label": "指标名（4-8字完整名词）", "sublabel": "补充（5-10字完整短语）" }
     ],
     "refs": [
-      { "title": "延伸阅读书名/资料（15字内）", "author": "作者（10字内）" },
-      { "title": "延伸阅读书名/资料（15字内）", "author": "作者（10字内）" },
-      { "title": "延伸阅读书名/资料（15字内）", "author": "作者（10字内）" }
+      { "title": "书名或资料名（5-15字）", "author": "作者或来源（3-10字）" },
+      { "title": "书名或资料名（5-15字）", "author": "作者或来源（3-10字）" },
+      { "title": "书名或资料名（5-15字）", "author": "作者或来源（3-10字）" }
     ]
   },
-  "keywords": ["词1","词2","词3","词4","词5","词6"],
-  "insights": ["完整洞察句子1（15-35字）","洞察句子2","洞察句子3","洞察句子4"]
+  "keywords": ["完整词语1","词语2","词语3","词语4","词语5","词语6"],
+  "insights": ["完整洞察句子1（15-40字，有主谓宾）","洞察句子2","洞察句子3","洞察句子4"]
 }
 
-重要要求：
-- 所有内容必须来自原文，严禁虚构数据
-- 数据不足时，dashboard的bars/risks等字段可用文档中最相关的定性内容代替
-- keywords 和 insights 两种格式都需要填写
+最终要求：所有内容来自原文，不虚构数据；若文档数据不足，相关字段用文档中最相关的完整表述填充。
 
 文档标题：${title}
 文档内容：
@@ -852,7 +1022,7 @@ ${text.slice(0, 6000)}`;
       },
       body: JSON.stringify({
         model: 'moonshot-v1-8k',
-        max_tokens: 1024,
+        max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -1314,10 +1484,13 @@ async function startPipeline(text) {
   });
 
   // 并发：动画 + Claude API 调用同时进行
-  const [aiResult] = await Promise.all([
+  const [rawAiResult] = await Promise.all([
     callClaudeAPI(text, title),
     new Promise(r => setTimeout(r, 4200))
   ]);
+
+  // 文字质量校验：清理截断词语和不完整句子
+  const aiResult = sanitizeAiData(rawAiResult);
 
   document.getElementById('pipelineCard').classList.remove('show');
   renderCard(text, aiResult);
