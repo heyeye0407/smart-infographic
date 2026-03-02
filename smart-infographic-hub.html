@@ -754,16 +754,14 @@ async function callClaudeAPI(text, title) {
 ${text.slice(0, 6000)}`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('https://api.moonshot.cn/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'Authorization': 'Bearer ' + key,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'moonshot-v1-8k',
         max_tokens: 1024,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -772,17 +770,17 @@ ${text.slice(0, 6000)}`;
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
       const msg = err?.error?.message || ('HTTP ' + resp.status);
-      toast('⚠️ Claude API 错误：' + msg.slice(0, 60));
+      toast('⚠️ Kimi API 错误：' + msg.slice(0, 60));
       return null;
     }
 
     const data = await resp.json();
-    const raw  = data.content?.[0]?.text || '';
+    const raw  = data.choices?.[0]?.message?.content || '';
     const match = raw.match(/\{[\s\S]*\}/);
     if (!match) return null;
     return JSON.parse(match[0]);
   } catch(e) {
-    console.error('Claude API error:', e);
+    console.error('Kimi API error:', e);
     toast('⚠️ API 请求失败，已使用本地算法降级');
     return null;
   }
