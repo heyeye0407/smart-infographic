@@ -282,6 +282,31 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
 .tbar-btn.regen { color: #7C6FE0; border-color: #C4B5FD; background: #F5F3FF; }
 .tbar-btn.regen:hover { background: #EDE9FE; }
 
+/* API settings modal */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; display:flex; align-items:center; justify-content:center; }
+.modal-box { background:#fff; border-radius:16px; padding:30px 32px; width:460px; box-shadow:0 20px 60px rgba(0,0,0,0.18); }
+.modal-title { font-size:16px; font-weight:700; color:#1a1a2e; margin-bottom:6px; }
+.modal-desc { font-size:13px; color:#6B7280; margin-bottom:20px; line-height:1.65; }
+.modal-field { margin-bottom:14px; }
+.modal-field label { display:block; font-size:11px; color:#9CA3AF; font-weight:700; letter-spacing:0.4px; margin-bottom:5px; }
+.modal-field input { width:100%; padding:10px 14px; border:1.5px solid #DDD9F5; border-radius:8px; font-size:13px; font-family:monospace; color:#1a1a2e; outline:none; transition:border 0.15s; }
+.modal-field input:focus { border-color:#7C6FE0; }
+.modal-hint { font-size:12px; color:#9CA3AF; line-height:1.6; }
+.modal-hint a { color:#7C6FE0; text-decoration:none; font-weight:500; }
+.modal-hint a:hover { text-decoration:underline; }
+.modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+.modal-btn { padding:8px 18px; border-radius:8px; font-size:13px; cursor:pointer; font-weight:500; border:none; transition:all 0.15s; }
+.modal-btn.secondary { background:#F3F2FC; color:#6B5B95; }
+.modal-btn.secondary:hover { background:#EDE9FE; }
+.modal-btn.primary { background:linear-gradient(135deg,#7C6FE0,#A855F7); color:#fff; }
+.modal-btn.primary:hover { filter:brightness(1.08); }
+.modal-btn.danger { background:#FFF5F5; color:#EF4444; border:1px solid #FCA5A5; }
+.modal-btn.danger:hover { background:#FEE2E2; }
+/* API status badge */
+.api-badge { font-size:10px; padding:2px 7px; border-radius:8px; font-weight:700; flex-shrink:0; }
+.api-badge.ok   { background:#D1FAE5; color:#065F46; }
+.api-badge.none { background:#FEF3C7; color:#92400E; }
+
 /* Doc action buttons */
 .doc-actions { display: flex; gap: 3px; align-items: center; }
 .doc-act-btn { border: none; background: transparent; cursor: pointer; padding: 3px 5px; border-radius: 5px; font-size: 13px; color: #C4B5FD; transition: all 0.15s; line-height: 1; }
@@ -314,6 +339,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
       </button>
       <button class="sb-btn secondary" onclick="document.getElementById('fileInput').click()">
         <span>↑</span><span>上传文件</span>
+      </button>
+      <button class="sb-btn secondary" onclick="openApiSettings()" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:9px"><span>🔑</span><span>AI 设置</span></span>
+        <span class="api-badge none" id="apiStatusBadge">未配置</span>
       </button>
     </div>
 
@@ -617,6 +646,29 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- API Key Settings Modal -->
+<div class="modal-overlay" id="apiModal" style="display:none" onclick="if(event.target===this)closeApiSettings()">
+  <div class="modal-box">
+    <div class="modal-title">🔑 配置 Anthropic API Key</div>
+    <div class="modal-desc">
+      配置后，文档分析将由 <strong>Claude AI</strong> 真实理解并提取，摘要、关键词、洞察质量大幅提升。<br>
+      Key 仅存储在本地浏览器，不会上传到任何服务器。
+    </div>
+    <div class="modal-field">
+      <label>ANTHROPIC API KEY</label>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off" />
+    </div>
+    <div class="modal-hint">
+      没有 Key？前往 <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> 免费获取。
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn danger" onclick="clearApiKey()">清除 Key</button>
+      <button class="modal-btn secondary" onclick="closeApiSettings()">取消</button>
+      <button class="modal-btn primary" onclick="saveApiKey()">保存并启用</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ======================================================
    STATE
@@ -633,6 +685,108 @@ let debTimer     = null;
 let toastTimer   = null;
 let currentDocId = null;   // ID of the doc currently open in editor
 let saveTimer    = null;   // debounce timer for localStorage auto-save
+
+/* ======================================================
+   CLAUDE API KEY MANAGEMENT
+   ====================================================== */
+const API_KEY_STORE = 'sih_apikey_v1';
+
+function getApiKey() { return localStorage.getItem(API_KEY_STORE) || ''; }
+
+function updateApiStatusBadge() {
+  const badge = document.getElementById('apiStatusBadge');
+  if (!badge) return;
+  const has = !!getApiKey();
+  badge.className = 'api-badge ' + (has ? 'ok' : 'none');
+  badge.textContent = has ? '✓ AI 已启用' : '未配置';
+}
+
+function openApiSettings() {
+  document.getElementById('apiKeyInput').value = getApiKey();
+  document.getElementById('apiModal').style.display = 'flex';
+}
+
+function closeApiSettings() {
+  document.getElementById('apiModal').style.display = 'none';
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { toast('请输入 API Key'); return; }
+  localStorage.setItem(API_KEY_STORE, key);
+  updateApiStatusBadge();
+  closeApiSettings();
+  toast('✓ API Key 已保存，下次生成将使用 Claude AI 分析');
+}
+
+function clearApiKey() {
+  localStorage.removeItem(API_KEY_STORE);
+  document.getElementById('apiKeyInput').value = '';
+  updateApiStatusBadge();
+  closeApiSettings();
+  toast('API Key 已清除，将使用本地算法');
+}
+
+/* ======================================================
+   CLAUDE API CALL
+   ====================================================== */
+async function callClaudeAPI(text, title) {
+  const key = getApiKey();
+  if (!key) return null;
+
+  const prompt = `请分析以下文档，提取核心信息，以 JSON 格式返回（只返回 JSON，不要任何其他文字）：
+
+{
+  "keywords": ["词1","词2",...],
+  "insights": ["洞察句子1","洞察句子2",...],
+  "dataPoints": [{"value":"数字+单位","context":"简短上下文"}],
+  "summary": "100字以内的文档摘要"
+}
+
+要求：
+- keywords：6-8个真正有意义的核心关键词，避免"数据""信息""方面"等泛化词
+- insights：4条最重要的核心观点，每条是完整句子，15-50字
+- dataPoints：文中出现的重要数字指标，最多3条，没有则返回空数组
+- summary：准确概括文档核心内容
+
+文档标题：${title}
+文档内容：
+${text.slice(0, 6000)}`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      const msg = err?.error?.message || ('HTTP ' + resp.status);
+      toast('⚠️ Claude API 错误：' + msg.slice(0, 60));
+      return null;
+    }
+
+    const data = await resp.json();
+    const raw  = data.content?.[0]?.text || '';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    return JSON.parse(match[0]);
+  } catch(e) {
+    console.error('Claude API error:', e);
+    toast('⚠️ API 请求失败，已使用本地算法降级');
+    return null;
+  }
+}
 
 /* ======================================================
    LOCALSTORAGE — DOCUMENT PERSISTENCE
@@ -1038,12 +1192,20 @@ const PIPELINE_STEPS = [
 const DELAYS_START = [0,   900,  1800, 2700];
 const DELAYS_DONE  = [800, 1700, 2600, 3500];
 
-function startPipeline(text) {
-  document.getElementById('igStatus').textContent  = 'AI 正在生成信息图…';
-  document.getElementById('igStatus').className    = 'infograph-status';
+async function startPipeline(text) {
+  const title = document.getElementById('edTitle').value || '文档标题';
+  const hasKey = !!getApiKey();
+
+  document.getElementById('igStatus').textContent = hasKey ? 'Claude AI 正在分析文档…' : 'AI 正在生成信息图…';
+  document.getElementById('igStatus').className   = 'infograph-status';
   document.getElementById('pipelineCard').classList.add('show');
 
-  PIPELINE_STEPS.forEach((s,i) => {
+  // 步骤标签：有 key 时更新为真实描述
+  const stepLabels = hasKey
+    ? ['Claude 理解文档语义…', '提取关键词与洞察…', '规划信息图布局…', '渲染 SVG 信息图…']
+    : PIPELINE_STEPS.map(s => s.label);
+
+  PIPELINE_STEPS.forEach((s, i) => {
     const el = document.getElementById(s.id);
     const pp = document.getElementById(s.prog);
     el.className = 'p-step pending';
@@ -1053,7 +1215,7 @@ function startPipeline(text) {
     setTimeout(() => {
       el.className = 'p-step active';
       el.querySelector('.p-step-icon').textContent = '⟳';
-      pp.textContent = s.label;
+      pp.textContent = stepLabels[i];
     }, DELAYS_START[i]);
 
     setTimeout(() => {
@@ -1063,10 +1225,14 @@ function startPipeline(text) {
     }, DELAYS_DONE[i]);
   });
 
-  setTimeout(() => {
-    document.getElementById('pipelineCard').classList.remove('show');
-    renderCard(text);
-  }, 4200);
+  // 并发：动画 + Claude API 调用同时进行
+  const [aiResult] = await Promise.all([
+    callClaudeAPI(text, title),
+    new Promise(r => setTimeout(r, 4200))
+  ]);
+
+  document.getElementById('pipelineCard').classList.remove('show');
+  renderCard(text, aiResult);
 }
 
 function manualGenerate() {
@@ -1109,13 +1275,16 @@ const THEMES = {
 };
 const THEME_NAMES = { purple:'暮光紫', blue:'钉钉蓝', green:'苔藓绿', amber:'琥珀棕' };
 
-function renderCard(text) {
+function renderCard(text, aiData) {
   const title    = document.getElementById('edTitle').value || '文档标题';
-  const kws      = extractKeywords(text, 8);
-  const insights = extractInsights(text, 4);
-  const datapts  = extractDataPoints(text);
   const chars    = text.length;
   const mins     = Math.max(1, Math.round(chars / 500));
+
+  // 优先用 Claude AI 结果，否则降级到本地算法
+  const kws      = (aiData?.keywords?.length      >= 2) ? aiData.keywords   : extractKeywords(text, 8);
+  const insights = (aiData?.insights?.length      >= 1) ? aiData.insights   : extractInsights(text, 4);
+  const datapts  = (aiData?.dataPoints?.length    >= 1) ? aiData.dataPoints : extractDataPoints(text);
+  const aiSource = !!aiData;
 
   cachedText  = text;
   cachedKws   = kws;
@@ -1153,7 +1322,7 @@ function renderCard(text) {
   document.getElementById('igStatus').innerHTML = '<span class="done">✓ 已生成</span>';
 
   if (currentDocId) updateDoc(currentDocId, { hasInfographic: true });
-  toast('✦ AI 摘要已生成，点击展开查看完整信息图');
+  toast(aiSource ? '✦ Claude AI 分析完成，点击展开查看信息图' : '✦ 摘要已生成（本地算法），点击展开查看信息图');
 }
 
 // Self-review: check for overflow and fix font sizes
@@ -1585,8 +1754,9 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
-// Init: render user docs from localStorage on page load
+// Init
 renderHubDocs();
+updateApiStatusBadge();
 </script>
 </body>
 </html>
