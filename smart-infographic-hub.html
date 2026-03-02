@@ -734,20 +734,110 @@ async function callClaudeAPI(text, title) {
   const key = getApiKey();
   if (!key) return null;
 
-  const prompt = `请分析以下文档，提取核心信息，以 JSON 格式返回（只返回 JSON，不要任何其他文字）：
+  const prompt = `请仔细阅读以下文档，完成两步分析：
 
+第一步：统计文档中出现的具体数字数据（数字+单位/百分比，如：31%、4.2亿、93.2%、营收1.9亿等）的总出现次数。
+
+第二步：根据数据出现频率选择信息图类型：
+- 数据出现次数 ≥ 10 次 → 选择 "dashboard"（数据仪表盘型）
+- 数据出现次数 < 10 次 → 选择 "poster"（知识海报型）
+
+【如果选择 dashboard】请以 JSON 格式返回（只返回 JSON，不要任何其他文字）：
 {
-  "keywords": ["词1","词2",...],
-  "insights": ["洞察句子1","洞察句子2",...],
-  "dataPoints": [{"value":"数字+单位","context":"简短上下文"}],
-  "summary": "100字以内的文档摘要"
+  "layout": "dashboard",
+  "summary": "一句话总结文档核心内容（25字以内，不要重复标题）",
+  "hero": {
+    "value": "文档中最核心的一个数字指标（含单位，如4.2亿）",
+    "label": "该指标名称（6字内）",
+    "change": "同比或环比变化（如+31%，无则空字符串）",
+    "badge": "最重要亮点或里程碑描述（12字内）"
+  },
+  "metrics": [
+    { "value": "核心指标数字（含单位）", "label": "指标名称（5字内）", "sublabel": "补充说明（8字内）" },
+    { "value": "核心指标数字（含单位）", "label": "指标名称（5字内）", "sublabel": "补充说明（8字内）" },
+    { "value": "核心指标数字（含单位）", "label": "指标名称（5字内）", "sublabel": "补充说明（8字内）" }
+  ],
+  "bars": [
+    { "name": "分类名称（8字内）", "value": "数值", "pct": 90, "trend": "+X%（无则空字符串）" },
+    { "name": "分类名称（8字内）", "value": "数值", "pct": 50, "trend": "" },
+    { "name": "分类名称（8字内）", "value": "数值", "pct": 25, "trend": "" }
+  ],
+  "risks": [
+    { "title": "风险点或关注事项（10字内）", "detail": "具体说明（12字内）", "value": "关键数字（无则空字符串）" },
+    { "title": "风险点或关注事项（10字内）", "detail": "具体说明（12字内）", "value": "" }
+  ],
+  "milestone": {
+    "value": "里程碑核心数字或成就（6字内，如+68%）",
+    "context": "简短说明（15字内）",
+    "badge": "额外成就描述（12字内，无则空字符串）"
+  },
+  "outlook": {
+    "value": "未来目标值或展望数字（6字内）",
+    "label": "展望说明（10字内）",
+    "actions": ["行动措施1（6字内）", "行动措施2（6字内）", "行动措施3（6字内）"]
+  },
+  "keywords": ["词1","词2","词3","词4","词5","词6"],
+  "insights": ["完整洞察句子1（15-35字）","洞察句子2","洞察句子3","洞察句子4"]
 }
 
-要求：
-- keywords：6-8个真正有意义的核心关键词，避免"数据""信息""方面"等泛化词
-- insights：4条最重要的核心观点，每条是完整句子，15-50字
-- dataPoints：文中出现的重要数字指标，最多3条，没有则返回空数组
-- summary：准确概括文档核心内容
+【如果选择 poster】请以 JSON 格式返回（只返回 JSON，不要任何其他文字）：
+{
+  "layout": "poster",
+  "summary": "文档摘要（50字以内）",
+  "left": {
+    "category": "文档领域类型（生产力/管理/设计/商业等，5字内）",
+    "tagline": "核心主题（10字以内）",
+    "definition": "核心概念的完整定义（40-60字，用于引用展示）",
+    "contrastA": { "name": "正向/核心概念（4字内）", "desc": "特征（5字内）" },
+    "contrastB": { "name": "对立/次要概念（4字内）", "desc": "特征（5字内）" },
+    "concepts": ["核心概念词1（4字内）","词2","词3","词4","词5"]
+  },
+  "center": {
+    "quote": "第一行核心金句（15字内，最具代表性的观点）",
+    "quote2": "第二行金句（15字内，可为空字符串）",
+    "quoteSource": "金句来源说明（12字内）",
+    "quoteContext": "金句背景与意义（35字以内）",
+    "cardA": {
+      "title": "核心洞察标题A（6字内）",
+      "body": "洞察详细内容（2-3句话，总40字以内）",
+      "source": "理论来源或作者（12字内，无则空字符串）"
+    },
+    "cardB": {
+      "title": "核心洞察标题B（6字内）",
+      "body": "洞察详细内容（2-3句话，总40字以内）",
+      "source": "理论来源或作者（12字内，无则空字符串）"
+    },
+    "tagGroup": {
+      "label": "关键策略/方法分类名称（8字内）",
+      "items": [
+        { "name": "策略1（4字内）", "desc": "说明（4字内）" },
+        { "name": "策略2（4字内）", "desc": "说明（4字内）" },
+        { "name": "策略3（4字内）", "desc": "说明（4字内）" },
+        { "name": "策略4（4字内）", "desc": "说明（4字内）" }
+      ]
+    },
+    "steps": ["第一步核心动作（8字内）","第二步（8字内）","第三步（8字内）","第四步（8字内）"]
+  },
+  "right": {
+    "stats": [
+      { "value": "关键数字（含单位，如4h或2.5×）", "label": "指标说明（8字内）", "sublabel": "补充（10字内）" },
+      { "value": "关键数字", "label": "指标说明（8字内）", "sublabel": "补充（10字内）" },
+      { "value": "关键数字", "label": "指标说明（8字内）", "sublabel": "补充（10字内）" }
+    ],
+    "refs": [
+      { "title": "延伸阅读书名/资料（15字内）", "author": "作者（10字内）" },
+      { "title": "延伸阅读书名/资料（15字内）", "author": "作者（10字内）" },
+      { "title": "延伸阅读书名/资料（15字内）", "author": "作者（10字内）" }
+    ]
+  },
+  "keywords": ["词1","词2","词3","词4","词5","词6"],
+  "insights": ["完整洞察句子1（15-35字）","洞察句子2","洞察句子3","洞察句子4"]
+}
+
+重要要求：
+- 所有内容必须来自原文，严禁虚构数据
+- 数据不足时，dashboard的bars/risks等字段可用文档中最相关的定性内容代替
+- keywords 和 insights 两种格式都需要填写
 
 文档标题：${title}
 文档内容：
@@ -1258,11 +1348,9 @@ function selectLayout(name, el) {
 }
 
 function autoLayout(text, kws) {
-  const nums  = (text.match(/\d+(\.\d+)?[%万亿百千十]/g) || []).length;
-  const ratio = nums / Math.max(text.length / 100, 1);
-  if (ratio > 2)                          return 'dashboard';
-  if (kws.length >= 5 && text.length > 500) return 'radial';
-  return 'magazine';
+  const dataCount = ((text.match(/\d[\d,]*(\.\d+)?\s*[%万亿千百元个人次倍天月年件条份]/g) || []).length)
+                  + ((text.match(/\d[\d,]*(\.\d+)?%/g) || []).length);
+  return dataCount >= 10 ? 'dashboard' : 'magazine';
 }
 
 const THEMES = {
@@ -1288,7 +1376,7 @@ function renderCard(text, aiData) {
   cachedKws   = kws;
   cachedSents = insights;
 
-  const svg = makeSVG({ title, kws, insights, datapts, chars, mins });
+  const svg = makeSVG({ title, kws, insights, datapts, chars, mins, aiData });
   document.getElementById('cardSVGWrap').innerHTML = svg;
 
   // Self-review: scan rendered text elements, shrink font if overflow detected
@@ -1357,213 +1445,405 @@ function buildSummary(title, kws, sents, chars, mins) {
    ====================================================== */
 const FONT = "'PingFang SC','Microsoft YaHei','Hiragino Sans GB',sans-serif";
 
-// ── Layout 1: 双栏杂志海报（叙述型文章）──
-// 深色左栏(关键词) + 白色中栏(洞察句) + 浅色右栏(数据卡)
-function svgMagazine({ title, kws, insights, datapts, chars, mins, t }) {
-  // Pre-compute
-  const titleLines = wrapStr(title, 620, 16, 2);
-  const leftKws    = kws.slice(0, 6);
-  const kwRows     = Math.ceil(Math.max(leftKws.length, 1) / 2);
-  const divY       = 104 + kwRows * 34 + 6;
-  const insLblY    = divY + 22;
-  const insStartY  = insLblY + 16;
+// ── Layout 1: 三栏知识海报（文字为主的文章）──
+// 参考深度工作 Demo 风格：深色左栏(标题+概念) | 白色中栏(金句+洞察+策略) | 暖色右栏(数据+参考)
+function svgMagazine({ title, kws, insights, datapts, chars, mins, t, aiData }) {
+  /* ── 数据准备 ── */
+  const left   = aiData?.left   || {};
+  const center = aiData?.center || {};
+  const right  = aiData?.right  || {};
 
-  const ins0 = insights[0] ? wrapStr(insights[0], 228, 11.5, 4) : [];
-  const ins1 = insights[1] ? wrapStr(insights[1], 320, 12,   3) : [];
-  const ins2 = insights[2] ? wrapStr(insights[2], 320, 12,   3) : [];
-  const ins3 = insights[3] ? wrapStr(insights[3], 320, 12,   3) : [];
+  const category = fitStr(left.category || kws[0] || '知识梳理', 238, 11);
+  const tagline  = fitStr(left.tagline  || '', 238, 13);
+  const defText  = left.definition || insights[0] || '';
+  const defLines = wrapStr(defText, 218, 12.5, 4);
+  const cA = left.contrastA || { name: kws[0]||'核心概念', desc: '高价值' };
+  const cB = left.contrastB || { name: kws[1]||'对立概念', desc: '可替代' };
+  const concepts = (left.concepts || kws).slice(0, 5);
 
-  const cards = datapts.length >= 2 ? datapts.slice(0, 3) : [
-    { value: chars.toLocaleString(), context: '文档字符数' },
-    { value: mins + ' min',          context: '预计阅读时长' },
-    { value: kws.length + ' 个',     context: '核心关键词' },
-  ];
+  const contrastY      = 188 + defLines.length * 18 + 14;
+  const conceptsLabelY = contrastY + 46 + 12;
+  const conceptsStartY = conceptsLabelY + 10;
 
-  // Pill rows
-  const pillsHtml = leftKws.map((k, i) => {
-    const col = i % 2, row = Math.floor(i / 2);
-    const px = 16 + col * 126, py = 104 + row * 34;
-    return `<rect x="${px}" y="${py}" width="118" height="26" rx="13" fill="rgba(255,255,255,0.15)"/>
-<text x="${px+59}" y="${py+17}" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.9)" font-weight="600" font-family="${FONT}">${esc(fitStr(k, 108, 11))}</text>`;
-  }).join('\n');
+  const quote       = fitStr(center.quote       || insights[0] || '', 294, 13.5);
+  const quote2      = fitStr(center.quote2      || '', 294, 13.5);
+  const quoteSource = fitStr(center.quoteSource || '', 220, 10);
+  const quoteCtx    = center.quoteContext || '';
+  const quoteCtxLines = wrapStr(quoteCtx, 285, 11, 2);
 
-  // Left insight excerpt
-  const leftInsHtml = ins0.map((l, i) =>
-    `<text x="16" y="${insStartY + i*17}" font-size="11.5" fill="rgba(255,255,255,${i===0?'0.88':'0.62'})" font-family="${FONT}">${esc(l)}</text>`
-  ).join('\n');
+  const cardA = center.cardA || { title: kws[0]||'核心洞察', body: insights[1]||'', source: '' };
+  const cardB = center.cardB || { title: kws[1]||'关键发现', body: insights[2]||'', source: '' };
+  const cardALines = wrapStr(cardA.body||'', 138, 11, 3);
+  const cardBLines = wrapStr(cardB.body||'', 148, 11, 3);
 
-  // Center insight blocks
-  const blockColors = [t.accent, t.h1, t.h0, t.accent];
-  const allIns = [ins0, ins1, ins2, ins3];
-  let centerHtml = '';
-  let cy2 = 108;
-  for (let idx = 0; idx < 4; idx++) {
-    const lines = allIns[idx];
-    if (!lines || lines.length === 0) break;
-    if (cy2 > 430) break;
-    const blockH = Math.min(lines.length, 3) * 18 + 16;
-    centerHtml += `
-<circle cx="300" cy="${cy2+12}" r="13" fill="${blockColors[idx]}" opacity="0.9"/>
-<text x="300" y="${cy2+17}" text-anchor="middle" font-size="12" fill="#fff" font-weight="800" font-family="${FONT}">${idx+1}</text>
-<rect x="290" y="${cy2+30}" width="336" height="${blockH}" rx="8" fill="${t.tag}" opacity="0.5"/>
-${lines.slice(0,3).map((l, li) => `<text x="302" y="${cy2+48+li*18}" font-size="12.5" fill="${t.h0}" font-weight="${li===0?'600':'400'}" font-family="${FONT}">${esc(l)}</text>`).join('\n')}`;
-    cy2 += blockH + 42;
-    if (idx < 3 && cy2 < 440) centerHtml += `\n<line x1="292" y1="${cy2-4}" x2="630" y2="${cy2-4}" stroke="#EDE9FE" stroke-width="1"/>`;
+  const tagGroup   = center.tagGroup || { label: '核心策略', items: kws.slice(2,6).map(k=>({name:k,desc:''})) };
+  const stratItems = (tagGroup.items || []).slice(0, 4);
+  const stratLabel = fitStr(tagGroup.label || '核心分类', 294, 11);
+  const stepTexts  = (center.steps || insights.slice(0,4)).slice(0, 4);
+  const stepCx     = [358, 432, 506, 580];
+
+  const stats = [...(right.stats || [])].slice(0, 3);
+  while (stats.length < 3) {
+    const fill = [
+      { value: chars.toLocaleString(), label: '文档字符', sublabel: '内容规模' },
+      { value: mins + ' min',           label: '阅读时长', sublabel: '预计用时' },
+      { value: kws.length + '个',        label: '核心词汇', sublabel: '关键词数' },
+    ][stats.length];
+    stats.push(fill);
   }
+  const refs = (right.refs || []).slice(0, 3);
 
-  // Right data cards
-  const cardHtml = cards.slice(0, 3).map((c, i) => {
-    const cy3 = 108 + i * 114;
-    const bg      = i === 1 ? t.h1 : '#fff';
-    const numFill = i === 1 ? '#fff'                  : t.h0;
-    const lblFill = i === 1 ? 'rgba(255,255,255,0.72)' : '#6B7280';
-    const vL = wrapStr(String(c.value), 158, 24, 1);
-    const cL = wrapStr(String(c.context), 168, 10, 2);
-    return `<rect x="658" y="${cy3}" width="184" height="96" rx="10" fill="${bg}" filter="url(#fSh)"/>
-<rect x="658" y="${cy3}" width="4" height="96" rx="2" fill="${t.accent}"/>
-<text x="750" y="${cy3+46}" text-anchor="middle" font-size="26" fill="${numFill}" font-weight="900" font-family="${FONT}">${esc(vL[0]||'')}</text>
-${cL.map((cl,ci) => `<text x="750" y="${cy3+64+ci*14}" text-anchor="middle" font-size="10" fill="${lblFill}" font-family="${FONT}">${esc(cl)}</text>`).join('')}`;
+  /* ── 概念标签 ── */
+  const conceptHtml = concepts.map((c, i) => {
+    const col = i % 2, row = Math.floor(i / 2);
+    const isLast = (i === concepts.length - 1) && (concepts.length % 2 !== 0);
+    const px = 28 + col * 120, py = conceptsStartY + row * 30;
+    const w  = isLast ? 244 : 112;
+    return `<rect x="${px}" y="${py}" width="${w}" height="22" rx="11" fill="rgba(255,255,255,${i===0?'0.2':'0.08'})"/>
+<text x="${px+w/2}" y="${py+15}" fill="${i===0?'#fff':'rgba(255,255,255,0.75)'}" font-size="11" font-family="${FONT}" text-anchor="middle">${esc(fitStr(c,w-8,11))}</text>`;
   }).join('\n');
 
-  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 480" style="width:100%;height:auto;border-radius:12px;display:block">
+  /* ── 策略标签 ── */
+  const stratXs = [328, 408, 488, 568];
+  const stratHtml = stratItems.map((s, i) => {
+    const sx = stratXs[i] !== undefined ? stratXs[i] : 328 + i * 80;
+    const nm = fitStr(s.name||'', 62, 11);
+    const ds = fitStr(s.desc||'', 62, 9.5);
+    const isFill = i === 0;
+    return `<rect x="${sx}" y="324" width="72" height="24" rx="12" fill="${isFill ? t.h0 : 'rgba(107,91,149,0.1)'}"/>
+<text x="${sx+36}" y="341" fill="${isFill ? '#fff' : t.h0}" font-size="11" font-family="${FONT}" text-anchor="middle">${esc(nm)}</text>
+${ds ? `<text x="${sx+36}" y="363" fill="${t.h0}" font-size="9.5" font-family="${FONT}" text-anchor="middle" opacity="0.7">${esc(ds)}</text>` : ''}`;
+  }).join('\n');
+
+  /* ── 实践路径 ── */
+  const stepColors = [t.h0, t.h1, t.accent, t.tag];
+  const stepTxts   = ['#fff', '#fff', '#fff', t.h0];
+  const stepsHtml  = stepTexts.map((s, i) => {
+    const cx = stepCx[i];
+    const lns = wrapStr(fitStr(String(s), 70, 9.5), 70, 9.5, 2);
+    const stroke = i === 3 ? `stroke="${t.accent}" stroke-width="1.5"` : '';
+    const ln = i < 3 ? `<line x1="${cx+14}" y1="448" x2="${stepCx[i+1]-14}" y2="448" stroke="${t.accent}" stroke-width="1.5" stroke-dasharray="4,3"/>` : '';
+    return `<circle cx="${cx}" cy="448" r="14" fill="${stepColors[i]}" ${stroke}/><text x="${cx}" y="453" fill="${stepTxts[i]}" font-size="11" font-family="${FONT}" text-anchor="middle" font-weight="700">${i+1}</text>${ln}
+${lns.map((l,li)=>`<text x="${cx}" y="${472+li*12}" fill="${t.h0}" font-size="9.5" font-family="${FONT}" text-anchor="middle">${esc(l)}</text>`).join('\n')}`;
+  }).join('\n');
+
+  /* ── 右栏统计 ── */
+  const statBg   = ['#fff', t.h0, '#fff'];
+  const statVFil = [t.h0, '#fff', t.h0];
+  const statLFil = [t.h0, 'rgba(255,255,255,0.9)', '#4A3870'];
+  const statSFil = [t.accent, 'rgba(255,255,255,0.65)', t.accent];
+  const statsHtml = stats.map((s, i) => {
+    const sy  = 48 + i * 84;
+    const val = fitStr(String(s.value||''), 150, 26);
+    const lbl = fitStr(String(s.label||''), 160, 10);
+    const sub = fitStr(String(s.sublabel||''), 164, 9);
+    return `<rect x="690" y="${sy}" width="172" height="72" rx="8" fill="${statBg[i]}" filter="url(#fShadowMG)"/>
+<text x="776" y="${sy+30}" fill="${statVFil[i]}" font-size="26" font-family="${FONT}" font-weight="700" text-anchor="middle">${esc(val)}</text>
+<text x="776" y="${sy+48}" fill="${statLFil[i]}" font-size="10" font-family="${FONT}" text-anchor="middle">${esc(lbl)}</text>
+${sub ? `<text x="776" y="${sy+62}" fill="${statSFil[i]}" font-size="9" font-family="${FONT}" text-anchor="middle">${esc(sub)}</text>` : ''}`;
+  }).join('\n');
+
+  /* ── 延伸阅读 ── */
+  const refsHtml = refs.length
+    ? refs.map((r, i) => {
+        const ry = 342 + i * 40;
+        return `<text x="700" y="${ry}" fill="#4A3870" font-size="10.5" font-family="${FONT}" font-weight="600">${esc(fitStr(r.title||'',148,10.5))}</text>
+<text x="700" y="${ry+15}" fill="#8C9099" font-size="9.5" font-family="${FONT}">${esc(fitStr(r.author||'',148,9.5))}</text>`;
+      }).join('\n')
+    : `<text x="700" y="350" fill="${t.accent}" font-size="10" font-family="${FONT}" opacity="0.6">基于文档内容提取</text>`;
+
+  const quoteRectH = quote2 ? 118 : 108;
+  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 540" style="width:100%;height:auto;border-radius:12px;display:block" font-family="${FONT}">
 <defs>
-  <linearGradient id="mgHead" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${t.h0}"/><stop offset="100%" stop-color="${t.h1}"/></linearGradient>
-  <linearGradient id="mgLeft" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.h0}"/><stop offset="100%" stop-color="${t.h1}" stop-opacity=".88"/></linearGradient>
-  <filter id="fSh"><feDropShadow dx="0" dy="2" stdDeviation="5" flood-opacity="0.10"/></filter>
-  <clipPath id="cpMH"><rect width="880" height="68"/></clipPath>
-  <clipPath id="cpML"><rect x="0" y="68" width="270" height="412"/></clipPath>
-  <clipPath id="cpMC"><rect x="278" y="68" width="370" height="412"/></clipPath>
-  <clipPath id="cpMR"><rect x="656" y="68" width="224" height="412"/></clipPath>
+  <linearGradient id="gHeroMG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${t.h0}"/><stop offset="100%" stop-color="${t.h1}"/></linearGradient>
+  <linearGradient id="gWarmMG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#F5EFE0"/><stop offset="100%" stop-color="#EDE8F8"/></linearGradient>
+  <clipPath id="cpHeroMG"><rect x="0" y="0" width="300" height="540"/></clipPath>
+  <clipPath id="cpQAMG"><rect x="308" y="8" width="364" height="162"/></clipPath>
+  <clipPath id="cpQBMG"><rect x="308" y="178" width="364" height="118"/></clipPath>
+  <clipPath id="cpKwMG"><rect x="308" y="304" width="364" height="96"/></clipPath>
+  <clipPath id="cpPathMG"><rect x="308" y="408" width="364" height="128"/></clipPath>
+  <clipPath id="cpStatMG"><rect x="680" y="8" width="192" height="524"/></clipPath>
+  <filter id="fShadowMG"><feDropShadow dx="0" dy="2" stdDeviation="4" flood-opacity="0.12"/></filter>
 </defs>
-<!-- Background -->
-<rect width="880" height="480" rx="12" fill="#F5F3FF"/>
-<!-- HEADER -->
-<g clip-path="url(#cpMH)">
-  <rect width="880" height="68" rx="12" fill="url(#mgHead)"/>
-  <rect y="56" width="880" height="12" fill="url(#mgHead)"/>
-  <text x="20" y="24" font-size="10" fill="rgba(255,255,255,0.5)" font-weight="600" letter-spacing="1" font-family="${FONT}">✦ AI 智能信息图</text>
-  ${titleLines.map((l,i) => `<text x="20" y="${42+i*20}" font-size="16" fill="#fff" font-weight="900" font-family="${FONT}">${esc(l)}</text>`).join('\n')}
-  <rect x="698" y="14" width="166" height="40" rx="20" fill="rgba(255,255,255,0.18)"/>
-  <text x="781" y="32" text-anchor="middle" font-size="11.5" fill="#fff" font-weight="700" font-family="${FONT}">${chars.toLocaleString()} 字</text>
-  <text x="781" y="49" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.6)" font-family="${FONT}">约 ${mins} 分钟阅读</text>
+<rect width="880" height="540" fill="#F5EFE0"/>
+<rect x="0" y="0" width="880" height="540" fill="url(#gWarmMG)" opacity="0.5"/>
+<!-- ── 左栏：标题与核心概念 ── -->
+<g clip-path="url(#cpHeroMG)">
+  <rect x="0" y="0" width="300" height="540" fill="url(#gHeroMG)"/>
+  <circle cx="20" cy="490" r="140" fill="rgba(255,255,255,0.04)"/>
+  <circle cx="280" cy="60" r="80" fill="rgba(255,255,255,0.06)"/>
+  <text x="28" y="44" fill="${t.accent}" opacity="0.9" font-size="11" font-weight="600" letter-spacing="3">${esc(category.toUpperCase())}</text>
+  <text x="28" y="90" fill="#fff" font-size="30" font-weight="700" letter-spacing="-0.5">${esc(fitStr(title,240,30))}</text>
+  ${tagline && tagline !== title ? `<text x="28" y="120" fill="rgba(255,255,255,0.8)" font-size="13" font-family="${FONT}">${esc(tagline)}</text>` : ''}
+  <line x1="28" y1="138" x2="272" y2="138" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <text x="28" y="162" fill="rgba(255,255,255,0.7)" font-size="11" font-family="${FONT}">核心定义</text>
+  <rect x="28" y="170" width="3" height="${defLines.length * 18}" fill="${t.accent}" opacity="0.7" rx="1.5"/>
+  ${defLines.map((l,i)=>`<text x="40" y="${188+i*18}" fill="rgba(255,255,255,${i===0?'0.88':'0.72'})" font-size="12.5" font-family="${FONT}">${esc(l)}</text>`).join('\n')}
+  <rect x="28" y="${contrastY}" width="244" height="44" rx="6" fill="rgba(255,255,255,0.1)"/>
+  <text x="${28+60}" y="${contrastY+18}" fill="rgba(255,255,255,0.9)" font-size="11" font-family="${FONT}" text-anchor="middle">${esc(fitStr(cA.name,56,11))}</text>
+  <text x="${28+122}" y="${contrastY+18}" fill="${t.accent}" font-size="13" font-family="${FONT}" text-anchor="middle">⇌</text>
+  <text x="${28+184}" y="${contrastY+18}" fill="rgba(255,255,255,0.55)" font-size="11" font-family="${FONT}" text-anchor="middle">${esc(fitStr(cB.name,56,11))}</text>
+  <text x="${28+60}" y="${contrastY+34}" fill="rgba(255,255,255,0.6)" font-size="9.5" font-family="${FONT}" text-anchor="middle">${esc(fitStr(cA.desc,52,9.5))}</text>
+  <text x="${28+184}" y="${contrastY+34}" fill="rgba(255,255,255,0.4)" font-size="9.5" font-family="${FONT}" text-anchor="middle">${esc(fitStr(cB.desc,52,9.5))}</text>
+  <text x="28" y="${conceptsLabelY}" fill="rgba(255,255,255,0.5)" font-size="10" font-family="${FONT}">核心概念</text>
+  ${conceptHtml}
+  <text x="28" y="516" fill="rgba(255,255,255,0.35)" font-size="10" font-family="${FONT}">${esc(fitStr(title,238,10))}</text>
+  <text x="28" y="530" fill="rgba(255,255,255,0.25)" font-size="9" font-family="${FONT}">AI 智能信息图 · 海报版</text>
 </g>
-<!-- LEFT COLUMN: keywords -->
-<g clip-path="url(#cpML)">
-  <rect x="0" y="68" width="270" height="412" fill="url(#mgLeft)"/>
-  <circle cx="240" cy="108" r="90" fill="rgba(255,255,255,0.04)"/>
-  <circle cx="20" cy="450" r="110" fill="rgba(255,255,255,0.04)"/>
-  <text x="16" y="98" font-size="9.5" fill="rgba(255,255,255,0.4)" font-weight="700" letter-spacing="2" font-family="${FONT}">核 心 关 键 词</text>
-  ${pillsHtml}
-  <line x1="16" y1="${divY}" x2="252" y2="${divY}" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>
-  <text x="16" y="${insLblY}" font-size="9.5" fill="rgba(255,255,255,0.4)" font-weight="700" letter-spacing="2" font-family="${FONT}">内 容 摘 录</text>
-  ${leftInsHtml}
+<!-- 分隔线 -->
+<line x1="300" y1="0" x2="300" y2="540" stroke="#D8D0EC" stroke-width="1"/>
+<line x1="672" y1="0" x2="672" y2="540" stroke="#D8D0EC" stroke-width="1"/>
+<!-- ── 中栏：核心金句 ── -->
+<g clip-path="url(#cpQAMG)">
+  <text x="328" y="36" fill="${t.h0}" font-size="11" font-family="${FONT}" font-weight="700" letter-spacing="2">核 心 金 句</text>
+  <text x="322" y="80" fill="${t.accent}" font-size="42" font-family="Georgia,serif" opacity="0.5">"</text>
+  <rect x="328" y="50" width="336" height="${quoteRectH}" rx="8" fill="rgba(107,91,149,0.06)"/>
+  <text x="348" y="78" fill="${t.h0}" font-size="13.5" font-family="${FONT}" font-weight="600">${esc(quote)}</text>
+  ${quote2 ? `<text x="348" y="98" fill="${t.h0}" font-size="13.5" font-family="${FONT}" font-weight="600">${esc(quote2)}</text>` : ''}
+  ${quoteCtxLines.map((l,i)=>`<text x="348" y="${quote2?120:106+i*18}" fill="${t.h1}" font-size="11" font-family="${FONT}">${esc(l)}</text>`).join('\n')}
+  ${quoteSource ? `<text x="616" y="152" fill="${t.accent}" font-size="10" font-family="${FONT}" text-anchor="end">— ${esc(quoteSource)}</text>` : ''}
 </g>
-<!-- CENTER COLUMN: insights -->
-<g clip-path="url(#cpMC)">
-  <rect x="278" y="68" width="370" height="412" fill="#fff"/>
-  <text x="296" y="96" font-size="10" fill="${t.h0}" font-weight="700" letter-spacing="1.5" font-family="${FONT}">关 键 洞 察</text>
-  <line x1="292" y1="103" x2="632" y2="103" stroke="#EDE9FE" stroke-width="1.5"/>
-  ${centerHtml}
+<!-- ── 中栏：双卡片洞察 ── -->
+<g clip-path="url(#cpQBMG)">
+  <line x1="328" y1="178" x2="636" y2="178" stroke="#E8E0F4" stroke-width="1"/>
+  <rect x="328" y="188" width="158" height="100" rx="8" fill="${t.tag}" opacity="0.35"/>
+  <text x="348" y="208" fill="${t.h0}" font-size="10" font-family="${FONT}" font-weight="700">${esc(fitStr(cardA.title,138,10))}</text>
+  ${cardALines.slice(0,3).map((l,i)=>`<text x="348" y="${224+i*16}" fill="${t.h0}" font-size="11" font-family="${FONT}" opacity="${+(1-i*0.12).toFixed(2)}">${esc(l)}</text>`).join('\n')}
+  ${cardA.source ? `<text x="348" y="${224+Math.min(3,cardALines.length)*16+4}" fill="${t.h1}" font-size="9.5" font-family="${FONT}" opacity="0.7">${esc(fitStr(cardA.source,138,9.5))}</text>` : ''}
+  <rect x="498" y="188" width="164" height="100" rx="8" fill="rgba(74,124,89,0.1)"/>
+  <text x="516" y="208" fill="#4A7C59" font-size="10" font-family="${FONT}" font-weight="700">${esc(fitStr(cardB.title,146,10))}</text>
+  ${cardBLines.slice(0,3).map((l,i)=>`<text x="516" y="${224+i*16}" fill="#2E4A38" font-size="11" font-family="${FONT}" opacity="${+(1-i*0.12).toFixed(2)}">${esc(l)}</text>`).join('\n')}
+  ${cardB.source ? `<text x="516" y="${224+Math.min(3,cardBLines.length)*16+4}" fill="#7AAD8C" font-size="9.5" font-family="${FONT}">${esc(fitStr(cardB.source,146,9.5))}</text>` : ''}
 </g>
-<!-- RIGHT COLUMN: data cards -->
-<g clip-path="url(#cpMR)">
-  <rect x="656" y="68" width="224" height="412" fill="#FAFAFF"/>
-  <text x="668" y="96" font-size="10" fill="${t.h0}" font-weight="700" letter-spacing="1.5" font-family="${FONT}">数 据 摘 要</text>
-  <line x1="668" y1="103" x2="862" y2="103" stroke="#EDE9FE" stroke-width="1.5"/>
-  ${cardHtml}
+<!-- ── 中栏：策略标签 ── -->
+<g clip-path="url(#cpKwMG)">
+  <line x1="328" y1="304" x2="636" y2="304" stroke="#E8E0F4" stroke-width="1"/>
+  <text x="328" y="320" fill="${t.h0}" font-size="11" font-family="${FONT}" font-weight="700" letter-spacing="1">${esc(stratLabel)}</text>
+  ${stratHtml}
 </g>
-<!-- Column dividers -->
-<rect x="270" y="68" width="8" height="412" fill="#EDE9FE" opacity="0.7"/>
-<rect x="648" y="68" width="8" height="412" fill="#EDE9FE" opacity="0.7"/>
-<!-- Footer -->
-<rect x="0" y="462" width="880" height="18" fill="rgba(107,91,149,0.05)"/>
-<text x="440" y="475" text-anchor="middle" font-size="9" fill="${t.h0}" opacity="0.35" font-family="${FONT}">AI 自动生成 · 内容来源于文档原文 · 仅供参考</text>
+<!-- ── 中栏：实践路径 ── -->
+<g clip-path="url(#cpPathMG)">
+  <line x1="328" y1="408" x2="636" y2="408" stroke="#E8E0F4" stroke-width="1"/>
+  <text x="328" y="428" fill="${t.h0}" font-size="11" font-family="${FONT}" font-weight="700" letter-spacing="1">实 践 路 径</text>
+  ${stepsHtml}
+</g>
+<!-- ── 右栏：数据与参考 ── -->
+<g clip-path="url(#cpStatMG)">
+  <rect x="680" y="0" width="200" height="540" fill="rgba(245,239,224,0.6)"/>
+  <text x="700" y="36" fill="${t.h0}" font-size="11" font-family="${FONT}" font-weight="700" letter-spacing="1">关 键 洞 察</text>
+  ${statsHtml}
+  <line x1="700" y1="308" x2="852" y2="308" stroke="#E8E0F4" stroke-width="1"/>
+  <text x="700" y="328" fill="${t.h0}" font-size="10" font-family="${FONT}" font-weight="700" letter-spacing="1">延 伸 阅 读</text>
+  ${refsHtml}
+  <line x1="700" y1="456" x2="852" y2="456" stroke="#E8E0F4" stroke-width="1"/>
+  <text x="700" y="474" fill="${t.accent}" opacity="0.7" font-size="9" font-family="${FONT}">AI 信息图 · 智能摘要</text>
+  <text x="700" y="488" fill="${t.accent}" opacity="0.5" font-size="8.5" font-family="${FONT}">钉钉文档 · 智能信息图插件</text>
+</g>
 </svg>`;
 }
 
-// ── Layout 2: 数据仪表板（数字多的文档）──
-// 顶部标题带 + 四格 KPI 卡 + 下半部分(洞察左/词汇右)
-function svgDashboard({ title, kws, insights, datapts, chars, mins, t }) {
-  const titleLines = wrapStr(title, 520, 15, 2);
+// ── Layout 2: 七模块数据仪表板（数据导向文档）──
+// 参考星云科技 Demo 风格：顶部总结条 + 6个不均等面板
+function svgDashboard({ title, kws, insights, datapts, chars, mins, t, aiData }) {
+  /* ── 数据准备 ── */
+  const summary   = aiData?.summary  || insights[0] || '';
+  const hero      = aiData?.hero     || { value: datapts[0]?.value||chars+'字', label: datapts[0]?.context||'总规模', change: '', badge: '' };
+  const metrics   = [...(aiData?.metrics || [])].slice(0, 3);
+  while (metrics.length < 3) {
+    const fill = [
+      { value: chars.toLocaleString(), label: '文档字符', sublabel: '内容规模' },
+      { value: mins + '分钟',           label: '阅读时长', sublabel: '预计用时' },
+      { value: kws.length + '个',        label: '核心词汇', sublabel: '关键词数' },
+    ][metrics.length];
+    metrics.push(fill);
+  }
+  const bars  = [...(aiData?.bars || datapts.slice(0,3).map((d,i)=>({ name:d.context||'', value:d.value||'', pct:80-i*20, trend:'' })))].slice(0,3);
+  while (bars.length < 3) bars.push({ name: kws[bars.length]||'其他', value: '', pct: 20, trend: '' });
+  const risks = [...(aiData?.risks || [{ title: insights[2]||kws[2]||'关注事项', detail: '', value: '' }])].slice(0,2);
+  while (risks.length < 2) risks.push({ title: kws[risks.length+2]||'待跟进', detail: '', value: '' });
+  const ms = aiData?.milestone || { value: datapts[1]?.value||kws[0]||'—', context: datapts[1]?.context||'关键指标', badge: '' };
+  const ol = aiData?.outlook   || { value: insights[3]||'—', label: '核心建议', actions: kws.slice(0,3) };
 
-  // 4 metrics
-  const raw = [...datapts.slice(0, 2)];
-  if (raw.length < 2) raw.push({ value: chars.toLocaleString(), context: '文档字符' });
-  if (raw.length < 3) raw.push({ value: mins + ' 分钟', context: '预计阅读' });
-  if (raw.length < 4) raw.push({ value: kws.length + ' 个', context: '核心词汇' });
-  const metrics = raw.slice(0, 4);
+  /* ── 文本截断 ── */
+  const titleShort   = fitStr(title, 450, 19);
+  const summaryShort = fitStr(summary, 560, 11.5);
+  const heroVal      = fitStr(String(hero.value  || ''), 150, 42);
+  const heroLbl      = fitStr(String(hero.label  || ''), 168, 12);
+  const heroChange   = fitStr(String(hero.change || ''), 100, 13);
+  const heroBadge    = hero.badge ? fitStr(String(hero.badge), 212, 13) : (heroChange || '');
 
-  // Metric cards (4 across)
-  const mW = 196, mGap = 14, mStartX = 14;
-  const metricHtml = metrics.map((m, i) => {
-    const mx = mStartX + i * (mW + mGap);
-    const isFill = (i === 0);
-    const bg      = isFill ? t.h1 : '#fff';
-    const numFill = isFill ? '#fff'                  : t.h0;
-    const subFill = isFill ? 'rgba(255,255,255,0.72)' : '#6B7280';
-    const vL = wrapStr(String(m.value), 160, 26, 1);
-    const cL = wrapStr(String(m.context), 174, 10, 2);
-    return `<rect x="${mx}" y="78" width="${mW}" height="102" rx="12" fill="${bg}" filter="url(#fSh)"/>
-<rect x="${mx}" y="78" width="4" height="102" rx="2" fill="${t.accent}"/>
-<text x="${mx+mW/2}" y="${78+50}" text-anchor="middle" font-size="28" fill="${numFill}" font-weight="900" font-family="${FONT}">${esc(vL[0]||'')}</text>
-${cL.map((cl,ci) => `<text x="${mx+mW/2}" y="${78+72+ci*14}" text-anchor="middle" font-size="10" fill="${subFill}" font-family="${FONT}">${esc(cl)}</text>`).join('')}`;
-  }).join('\n');
-
-  // Insight bullets (bottom left)
-  let insHtml = '';
-  let insY = 220;
-  insights.slice(0, 3).forEach((s, i) => {
-    const lines = wrapStr(s, 368, 12.5, 2);
-    if (!lines.length) return;
-    insHtml += `<circle cx="30" cy="${insY+6}" r="6" fill="${t.accent}" opacity="0.85"/>
-${lines.slice(0,2).map((l,li) => `<text x="44" y="${insY+8+li*17}" font-size="12.5" fill="${li===0?'#1a1a2e':'#6B7280'}" font-weight="${li===0?'500':'400'}" font-family="${FONT}">${esc(l)}</text>`).join('\n')}`;
-    insY += lines.slice(0,2).length * 17 + 26;
+  /* ── Cell B：三项指标 ── */
+  const mCx = [302, 408, 514], mCy = 187;
+  const ringColors  = [t.h1, t.accent, t.h0];
+  const ringBgClrs  = ['#EDF4FF', '#F3EEFF', '#FFF5F0'];
+  const ringTxtClrs = [t.h0, t.accent, t.h0];
+  let cellBHtml = '';
+  metrics.forEach((m, i) => {
+    const cx = mCx[i];
+    const valStr = String(m.value || '');
+    const pctR = valStr.match(/([\d.]+)\s*%/);
+    const pct  = pctR ? Math.min(100, parseFloat(pctR[1])) : null;
+    const lbl  = fitStr(m.label   || '', 84, 10);
+    const sub  = fitStr(m.sublabel|| '', 88, 9.5);
+    const disp = fitStr(valStr, 84, 19);
+    if (pct !== null) {
+      const C = 2 * Math.PI * 47;
+      const d = (pct / 100 * C).toFixed(1);
+      cellBHtml += `<circle cx="${cx}" cy="${mCy}" r="47" fill="${ringBgClrs[i]}"/>
+<circle cx="${cx}" cy="${mCy}" r="47" fill="none" stroke="${t.tag}" stroke-width="7.5"/>
+<circle cx="${cx}" cy="${mCy}" r="47" fill="none" stroke="${ringColors[i]}" stroke-width="7.5" stroke-dasharray="${d} ${C.toFixed(1)}" stroke-linecap="round" transform="rotate(-90 ${cx} ${mCy})" opacity="0.9"/>
+<text x="${cx}" y="${mCy-6}" text-anchor="middle" font-size="19" font-weight="900" fill="${ringTxtClrs[i]}" font-family="${FONT}">${esc(valStr)}</text>
+<text x="${cx}" y="${mCy+10}" text-anchor="middle" font-size="10" fill="${ringTxtClrs[i]}" font-weight="600" font-family="${FONT}">${esc(lbl)}</text>
+<text x="${cx}" y="${mCy+25}" text-anchor="middle" font-size="9.5" fill="#8C9099" font-family="${FONT}">${esc(sub)}</text>`;
+    } else {
+      cellBHtml += `<circle cx="${cx}" cy="${mCy}" r="47" fill="${ringBgClrs[i]}"/>
+<text x="${cx}" y="${mCy-2}" text-anchor="middle" font-size="20" font-weight="900" fill="${ringTxtClrs[i]}" font-family="${FONT}">${esc(disp)}</text>
+<text x="${cx}" y="${mCy+17}" text-anchor="middle" font-size="10" fill="${ringTxtClrs[i]}" font-weight="600" font-family="${FONT}">${esc(lbl)}</text>
+<text x="${cx}" y="${mCy+31}" text-anchor="middle" font-size="9.5" fill="#8C9099" font-family="${FONT}">${esc(sub)}</text>`;
+    }
   });
 
-  // Keyword tags with varying bar widths (bottom right)
-  const tagsHtml = kws.slice(0, 8).map((k, i) => {
-    const ty = 220 + i * 28;
-    const barW = Math.max(60, Math.round(172 * (1 - i * 0.09)));
-    return `<rect x="478" y="${ty}" width="180" height="24" rx="12" fill="#F3F2FC"/>
-<rect x="478" y="${ty}" width="${barW}" height="24" rx="12" fill="${t.tag}"/>
-<text x="490" y="${ty+16}" font-size="11" fill="${t.h0}" font-weight="600" font-family="${FONT}">${esc(fitStr(k, 148, 11))}</text>`;
-  }).join('\n');
+  /* ── Cell C：柱状对比 ── */
+  const barColors = [t.h1, t.accent, t.h0];
+  let cellCHtml = '';
+  bars.forEach((b, i) => {
+    const ty = 137 + i * 38;
+    const pct = Math.max(5, Math.min(95, Number(b.pct) || 20));
+    const bW  = Math.round(190 * pct / 100);
+    const nm  = fitStr(b.name  || '', 160, 11);
+    const vl  = fitStr(String(b.value || ''), 56, 9.5);
+    const tr  = fitStr(String(b.trend || ''), 44, 11.5);
+    const trC = String(b.trend||'').startsWith('-') ? '#E05252' : t.h1;
+    cellCHtml += `<text x="626" y="${ty}" font-size="11" fill="#3D2B1F" font-weight="600" font-family="${FONT}">${esc(nm)}</text>
+<rect x="626" y="${ty+4}" width="190" height="9" rx="4.5" fill="${t.tag}" opacity="0.4"/>
+<rect x="626" y="${ty+4}" width="${bW}" height="9" rx="4.5" fill="${barColors[i]}" opacity="0.85"/>
+<text x="624" y="${ty+24}" font-size="9.5" fill="#9E8878" font-family="${FONT}">${esc(vl)}</text>
+${b.trend ? `<text x="845" y="${ty+14}" text-anchor="end" font-size="11.5" fill="${trC}" font-weight="700" font-family="${FONT}">${esc(tr)}</text>` : ''}`;
+  });
 
-  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 480" style="width:100%;height:auto;border-radius:12px;display:block">
+  /* ── Cell D：风险 ── */
+  let cellDHtml = '';
+  risks.forEach((r, i) => {
+    const ry = 357 + i * 50;
+    const rt  = fitStr(r.title  || '', 168, 11.5);
+    const rd  = fitStr(r.detail || '', 192, 10);
+    const rv  = fitStr(String(r.value || ''), 52, i === 0 ? 24 : 20);
+    const rBg = i === 0 ? '#FFF0E8' : '#FFFAF0';
+    const rBr = i === 0 ? t.h0 : t.accent;
+    cellDHtml += `<rect x="28" y="${ry}" width="240" height="44" rx="8" fill="${rBg}"/>
+<rect x="28" y="${ry}" width="4" height="44" rx="2" fill="${rBr}"/>
+<text x="40" y="${ry+16}" font-size="11.5" fill="${t.h0}" font-weight="700" font-family="${FONT}">${esc(rt)}</text>
+<text x="40" y="${ry+33}" font-size="10" fill="#A06040" font-family="${FONT}">${esc(rd)}</text>
+${rv ? `<text x="262" y="${ry+38}" text-anchor="end" font-size="${i===0?24:20}" font-weight="900" fill="${rBr}" font-family="${FONT}">${esc(rv)}</text>` : ''}`;
+  });
+
+  /* ── Cell E / F ── */
+  const msVal   = fitStr(String(ms.value   || ''), 170, 48);
+  const msCtx   = fitStr(String(ms.context || ''), 180, 10.5);
+  const msBadge = fitStr(String(ms.badge   || ''), 180, 12);
+  const olVal   = fitStr(String(ol.value || ''), 210, 46);
+  const olLabel = fitStr(String(ol.label || ''), 228, 10.5);
+  const actStr  = fitStr((ol.actions||kws.slice(0,3)).slice(0,3).map(a=>fitStr(String(a),70,10.5)).join(' · '), 256, 10.5);
+
+  return `<svg id="hubSVG" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 510" style="width:100%;height:auto;border-radius:12px;display:block" font-family="${FONT}">
 <defs>
-  <linearGradient id="dbH" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="${t.h0}"/><stop offset="100%" stop-color="${t.h1}"/></linearGradient>
-  <filter id="fSh"><feDropShadow dx="0" dy="2" stdDeviation="5" flood-opacity="0.09"/></filter>
-  <clipPath id="dbHead"><rect width="880" height="68"/></clipPath>
-  <clipPath id="dbIns"><rect x="14" y="194" width="454" height="268"/></clipPath>
-  <clipPath id="dbTags"><rect x="468" y="194" width="398" height="268"/></clipPath>
+  <linearGradient id="gBgDB" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FAF8FF"/><stop offset="100%" stop-color="#F0EEF8"/></linearGradient>
+  <linearGradient id="gHeaderDB" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.h0}"/><stop offset="100%" stop-color="${t.h1}" stop-opacity="0.92"/></linearGradient>
+  <linearGradient id="gHeroDB" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.h1}"/><stop offset="100%" stop-color="${t.h0}"/></linearGradient>
+  <linearGradient id="gMsDB" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${t.accent}" stop-opacity="0.85"/><stop offset="100%" stop-color="${t.h1}"/></linearGradient>
+  <filter id="shDB"><feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="${t.h0}" flood-opacity="0.09"/></filter>
+  <filter id="shSDB"><feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="${t.h0}" flood-opacity="0.06"/></filter>
+  <clipPath id="cpHeadDB"><rect x="16" y="16" width="848" height="62" rx="14"/></clipPath>
+  <clipPath id="cpADB"><rect x="16" y="90" width="192" height="206" rx="14"/></clipPath>
+  <clipPath id="cpBDB"><rect x="220" y="90" width="376" height="206" rx="14"/></clipPath>
+  <clipPath id="cpCDB"><rect x="608" y="90" width="256" height="206" rx="14"/></clipPath>
+  <clipPath id="cpDDB"><rect x="16" y="308" width="260" height="154" rx="14"/></clipPath>
+  <clipPath id="cpEDB"><rect x="288" y="308" width="260" height="154" rx="14"/></clipPath>
+  <clipPath id="cpFDB"><rect x="560" y="308" width="304" height="154" rx="14"/></clipPath>
 </defs>
-<!-- Background -->
-<rect width="880" height="480" rx="12" fill="#F8F7FF"/>
-<!-- HEADER -->
-<g clip-path="url(#dbHead)">
-  <rect width="880" height="68" rx="12" fill="url(#dbH)"/>
-  <rect y="56" width="880" height="12" fill="url(#dbH)"/>
-  <text x="20" y="24" font-size="10" fill="rgba(255,255,255,0.5)" font-weight="600" letter-spacing="1" font-family="${FONT}">✦ AI 智能信息图 · 数据仪表板</text>
-  ${titleLines.map((l,i) => `<text x="20" y="${42+i*20}" font-size="15" fill="#fff" font-weight="900" font-family="${FONT}">${esc(l)}</text>`).join('\n')}
+<rect width="880" height="510" fill="url(#gBgDB)" rx="10"/>
+<!-- ══ HEADER：一句话总结 ══ -->
+<g clip-path="url(#cpHeadDB)">
+  <rect x="16" y="16" width="848" height="62" rx="14" fill="url(#gHeaderDB)" filter="url(#shDB)"/>
+  <rect x="16" y="16" width="6" height="62" fill="${t.accent}" rx="3"/>
+  <text x="40" y="42" font-size="19" font-weight="800" fill="white" letter-spacing="0.5">${esc(titleShort)}</text>
+  <text x="40" y="63" font-size="11.5" fill="rgba(255,255,255,0.78)">${esc(summaryShort)}</text>
+  ${heroBadge ? `<rect x="614" y="28" width="232" height="33" rx="16.5" fill="rgba(255,255,255,0.18)" filter="url(#shSDB)"/>
+  <text x="730" y="49" text-anchor="middle" font-size="13" font-weight="700" fill="white">✦ ${esc(heroBadge)}</text>` : ''}
 </g>
-<!-- Metric cards -->
-${metricHtml}
-<!-- Section divider -->
-<line x1="14" y1="193" x2="866" y2="193" stroke="#EDE9FE" stroke-width="1.5"/>
-<!-- Section labels -->
-<text x="14" y="213" font-size="10" fill="${t.h0}" font-weight="700" letter-spacing="1.5" font-family="${FONT}">关 键 洞 察</text>
-<text x="478" y="213" font-size="10" fill="${t.h0}" font-weight="700" letter-spacing="1.5" font-family="${FONT}">核 心 词 汇</text>
-<line x1="14" y1="218" x2="454" y2="218" stroke="#EDE9FE" stroke-width="1"/>
-<line x1="478" y1="218" x2="862" y2="218" stroke="#EDE9FE" stroke-width="1"/>
-<!-- Insights -->
-<g clip-path="url(#dbIns)">${insHtml}</g>
-<!-- Tags -->
-<g clip-path="url(#dbTags)">${tagsHtml}</g>
-<!-- Vertical divider -->
-<line x1="462" y1="194" x2="462" y2="462" stroke="#EDE9FE" stroke-width="1" stroke-dasharray="5,4"/>
+<!-- ══ CELL A：英雄指标 ══ -->
+<g clip-path="url(#cpADB)">
+  <rect x="16" y="90" width="192" height="206" rx="14" fill="url(#gHeroDB)" filter="url(#shDB)"/>
+  <circle cx="112" cy="183" r="80" fill="rgba(255,255,255,0.06)"/>
+  <circle cx="112" cy="183" r="58" fill="rgba(255,255,255,0.09)"/>
+  <circle cx="112" cy="183" r="38" fill="rgba(255,255,255,0.13)"/>
+  <rect x="50" y="100" width="124" height="22" rx="11" fill="rgba(255,255,255,0.2)"/>
+  <text x="112" y="115" text-anchor="middle" font-size="10.5" fill="white" letter-spacing="2">核 心 成 就</text>
+  <text x="112" y="175" text-anchor="middle" font-size="42" font-weight="900" fill="white" letter-spacing="-1">${esc(heroVal)}</text>
+  <text x="112" y="196" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.82)">${esc(heroLbl)}</text>
+  ${heroChange ? `<rect x="56" y="238" width="112" height="30" rx="15" fill="rgba(255,255,255,0.22)" filter="url(#shSDB)"/>
+  <text x="112" y="258" text-anchor="middle" font-size="13" font-weight="800" fill="white">${esc(heroChange)}</text>` : ''}
+</g>
+<!-- ══ CELL B：三项核心指标 ══ -->
+<g clip-path="url(#cpBDB)">
+  <rect x="220" y="90" width="376" height="206" rx="14" fill="white" filter="url(#shDB)"/>
+  <text x="408" y="112" text-anchor="middle" font-size="12" font-weight="700" fill="${t.h0}" letter-spacing="1">核 心 指 标</text>
+  <line x1="244" y1="120" x2="572" y2="120" stroke="${t.tag}" stroke-width="1"/>
+  ${cellBHtml}
+</g>
+<!-- ══ CELL C：数据对比 ══ -->
+<g clip-path="url(#cpCDB)">
+  <rect x="608" y="90" width="256" height="206" rx="14" fill="#F6F4FF" filter="url(#shDB)"/>
+  <text x="736" y="111" text-anchor="middle" font-size="12" font-weight="700" fill="${t.h0}" letter-spacing="1">数 据 对 比</text>
+  <line x1="626" y1="119" x2="846" y2="119" stroke="${t.tag}" stroke-width="1"/>
+  ${cellCHtml}
+</g>
+<!-- ══ CELL D：风险预警 ══ -->
+<g clip-path="url(#cpDDB)">
+  <rect x="16" y="308" width="260" height="154" rx="14" fill="white" filter="url(#shDB)"/>
+  <rect x="16" y="308" width="6" height="154" fill="${t.h0}" rx="3"/>
+  <polygon points="48,323 36,345 60,345" fill="${t.accent}" opacity="0.7"/>
+  <text x="48" y="339" text-anchor="middle" font-size="11" font-weight="900" fill="white">!</text>
+  <text x="72" y="327" font-size="13" font-weight="800" fill="${t.h0}">风险预警</text>
+  <text x="72" y="342" font-size="10" fill="${t.h1}">${risks.length} 项需关注</text>
+  <line x1="30" y1="351" x2="268" y2="351" stroke="${t.tag}" stroke-width="1"/>
+  ${cellDHtml}
+</g>
+<!-- ══ CELL E：里程碑 ══ -->
+<g clip-path="url(#cpEDB)">
+  <rect x="288" y="308" width="260" height="154" rx="14" fill="url(#gMsDB)" filter="url(#shDB)"/>
+  <circle cx="418" cy="385" r="68" fill="rgba(255,255,255,0.07)"/>
+  <circle cx="418" cy="385" r="48" fill="rgba(255,255,255,0.10)"/>
+  <rect x="324" y="316" width="188" height="22" rx="11" fill="rgba(255,255,255,0.22)"/>
+  <text x="418" y="331" text-anchor="middle" font-size="10.5" fill="white" letter-spacing="2">里 程 碑</text>
+  <text x="418" y="390" text-anchor="middle" font-size="48" font-weight="900" fill="white" letter-spacing="-2">${esc(msVal)}</text>
+  <text x="418" y="412" text-anchor="middle" font-size="10.5" fill="rgba(255,255,255,0.82)">${esc(msCtx)}</text>
+  ${msBadge ? `<rect x="324" y="424" width="188" height="28" rx="14" fill="rgba(255,255,255,0.24)"/>
+  <text x="418" y="443" text-anchor="middle" font-size="12" font-weight="700" fill="white">${esc(msBadge)}</text>` : ''}
+</g>
+<!-- ══ CELL F：未来展望 ══ -->
+<g clip-path="url(#cpFDB)">
+  <rect x="560" y="308" width="304" height="154" rx="14" fill="#EEF4FB" filter="url(#shDB)"/>
+  <rect x="560" y="308" width="6" height="154" fill="${t.h1}" rx="3"/>
+  <circle cx="594" cy="333" r="16" fill="${t.h1}" filter="url(#shSDB)"/>
+  <circle cx="594" cy="333" r="9" fill="none" stroke="white" stroke-width="1.8"/>
+  <circle cx="594" cy="333" r="4" fill="none" stroke="white" stroke-width="1.8"/>
+  <circle cx="594" cy="333" r="1.5" fill="white"/>
+  <text x="619" y="327" font-size="13" font-weight="800" fill="${t.h0}">未来展望</text>
+  <text x="619" y="343" font-size="10.5" fill="${t.h1}">${esc(olLabel)}</text>
+  <line x1="574" y1="352" x2="852" y2="352" stroke="${t.tag}" stroke-width="1"/>
+  <text x="712" y="408" text-anchor="middle" font-size="46" font-weight="900" fill="${t.h0}" letter-spacing="-1">${esc(olVal)}</text>
+  ${actStr ? `<rect x="574" y="438" width="278" height="20" rx="10" fill="rgba(107,91,149,0.08)"/>
+  <text x="713" y="452" text-anchor="middle" font-size="10.5" fill="${t.h0}">${esc(actStr)}</text>` : ''}
+</g>
+<!-- 分隔虚线 -->
+<line x1="216" y1="96" x2="216" y2="290" stroke="${t.tag}" stroke-width="1" stroke-dasharray="4,6"/>
+<line x1="604" y1="96" x2="604" y2="290" stroke="${t.tag}" stroke-width="1" stroke-dasharray="4,6"/>
+<line x1="284" y1="314" x2="284" y2="456" stroke="${t.tag}" stroke-width="1" stroke-dasharray="4,6"/>
+<line x1="556" y1="314" x2="556" y2="456" stroke="${t.tag}" stroke-width="1" stroke-dasharray="4,6"/>
 <!-- Footer -->
-<rect x="0" y="462" width="880" height="18" fill="rgba(107,91,149,0.05)"/>
-<text x="440" y="475" text-anchor="middle" font-size="9" fill="${t.h0}" opacity="0.35" font-family="${FONT}">AI 自动生成 · 内容来源于文档原文 · 仅供参考</text>
+<rect x="16" y="474" width="848" height="22" rx="11" fill="rgba(107,91,149,0.06)"/>
+<text x="440" y="489" text-anchor="middle" font-size="10" fill="${t.h0}" opacity="0.4" letter-spacing="0.3">AI 智能信息图 · 数据仪表板 · 内容来源于文档原文</text>
 </svg>`;
 }
 
@@ -1645,12 +1925,19 @@ ${snippet ? `<text x="${nx.toFixed(1)}" y="${(ny+10).toFixed(1)}" text-anchor="m
 </svg>`;
 }
 
-function makeSVG({ title, kws, insights, datapts, chars, mins }) {
-  const t      = THEMES[curTheme];
-  const layout = curLayout === 'auto' ? autoLayout(cachedText, kws) : curLayout;
-  if (layout === 'dashboard') return svgDashboard({ title, kws, insights, datapts, chars, mins, t });
+function makeSVG({ title, kws, insights, datapts, chars, mins, aiData }) {
+  const t = THEMES[curTheme];
+  let layout;
+  if (curLayout !== 'auto') {
+    layout = curLayout;
+  } else if (aiData?.layout) {
+    layout = aiData.layout;
+  } else {
+    layout = autoLayout(cachedText, kws);
+  }
+  if (layout === 'dashboard') return svgDashboard({ title, kws, insights, datapts, chars, mins, t, aiData });
   if (layout === 'radial')    return svgRadial({ title, kws, insights, datapts, chars, mins, t });
-  return svgMagazine({ title, kws, insights, datapts, chars, mins, t });
+  return svgMagazine({ title, kws, insights, datapts, chars, mins, t, aiData });
 }
 
 /* ======================================================
