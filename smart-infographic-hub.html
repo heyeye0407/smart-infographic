@@ -780,102 +780,116 @@ function sanitizeAiData(data) {
   }
 
   // Dashboard-specific field cleaning
+  // Uses pixel-accurate fitStr matching exact SVG rendering constraints → no double-clipping
   if (data.layout === 'dashboard') {
     if (data.hero) {
-      data.hero.label  = cleanCut(data.hero.label  || '', 8);
-      data.hero.badge  = cleanCut(data.hero.badge  || '', 14);
-      data.hero.change = cleanCut(data.hero.change || '', 8);
+      data.hero.label  = fitStr(data.hero.label  || '', 168, 12);
+      data.hero.badge  = fitStr(data.hero.badge  || '', 212, 13);
+      data.hero.change = fitStr(data.hero.change || '', 100, 13);
+      // hero.value: rendered with dynFont (scales font to show full text, no clipping needed)
     }
     if (Array.isArray(data.metrics)) {
       data.metrics = data.metrics.map(m => ({
         ...m,
-        label:    cleanCut(m.label    || '', 7),
-        sublabel: cleanCut(m.sublabel || '', 10),
+        label:    fitStr(m.label    || '', 84, 10),
+        sublabel: fitStr(m.sublabel || '', 88, 9.5),
+        value:    fitStr(String(m.value || ''), 84, 19),
       }));
     }
     if (Array.isArray(data.bars)) {
       data.bars = data.bars.map(b => ({
         ...b,
-        name:  cleanCut(b.name  || '', 10),
-        value: cleanCut(String(b.value || ''), 10),
-        trend: cleanCut(b.trend || '', 6),
+        name:  fitStr(b.name  || '', 160, 11),
+        value: fitStr(String(b.value || ''), 56, 9.5),
+        trend: fitStr(b.trend || '', 44, 11.5),
       }));
     }
     if (Array.isArray(data.risks)) {
       data.risks = data.risks.map(r => ({
         ...r,
-        title:  cleanCut(r.title  || '', 12),
-        detail: cleanCut(r.detail || '', 14),
-        value:  cleanCut(String(r.value || ''), 8),
-      })).filter(r => isComplete(r.title, 3));
+        title:  fitStr(r.title  || '', 168, 11.5),
+        detail: fitStr(r.detail || '', 192, 10),
+        value:  fitStr(String(r.value || ''), 52, 20),
+      })).filter(r => r.title.length >= 3);
     }
     if (data.milestone) {
-      data.milestone.context = cleanCut(data.milestone.context || '', 16);
-      data.milestone.badge   = cleanCut(data.milestone.badge   || '', 14);
+      data.milestone.context = fitStr(data.milestone.context || '', 180, 10.5);
+      data.milestone.badge   = fitStr(data.milestone.badge   || '', 180, 12);
+      // milestone.value: rendered with dynFont (scales font to show full text, no clipping needed)
     }
     if (data.outlook) {
-      data.outlook.label   = cleanCut(data.outlook.label   || '', 12);
+      data.outlook.label = fitStr(data.outlook.label || '', 228, 10.5);
       if (Array.isArray(data.outlook.actions)) {
         data.outlook.actions = data.outlook.actions
-          .map(a => cleanCut(String(a || ''), 8))
-          .filter(a => isComplete(a, 2));
+          .map(a => fitStr(String(a || ''), 70, 10.5))
+          .filter(a => a.length >= 2);
       }
+      // outlook.value: rendered with dynFont (scales font to show full text, no clipping needed)
     }
   }
 
   // Poster-specific field cleaning
+  // Uses pixel-accurate fitStr matching exact SVG rendering constraints → no double-clipping
   if (data.layout === 'poster') {
     if (data.left) {
-      data.left.category   = cleanCut(data.left.category   || '', 6);
-      data.left.tagline    = cleanCut(data.left.tagline    || '', 12);
-      data.left.definition = cleanCut(data.left.definition || '', 65);
-      if (data.left.contrastA) data.left.contrastA.name = cleanCut(data.left.contrastA.name || '', 5);
-      if (data.left.contrastB) data.left.contrastB.name = cleanCut(data.left.contrastB.name || '', 5);
+      data.left.category   = fitStr(data.left.category   || '', 238, 11);
+      data.left.tagline    = fitStr(data.left.tagline    || '', 238, 13);
+      data.left.definition = cleanCut(data.left.definition || '', 65);  // multi-line wrapStr, keep char limit
+      if (data.left.contrastA) {
+        data.left.contrastA.name = fitStr(data.left.contrastA.name || '', 56, 11);
+        data.left.contrastA.desc = fitStr(data.left.contrastA.desc || '', 52, 9.5);
+      }
+      if (data.left.contrastB) {
+        data.left.contrastB.name = fitStr(data.left.contrastB.name || '', 56, 11);
+        data.left.contrastB.desc = fitStr(data.left.contrastB.desc || '', 52, 9.5);
+      }
       if (Array.isArray(data.left.concepts)) {
         data.left.concepts = data.left.concepts
-          .map(c => cleanCut(String(c || ''), 6))
-          .filter(c => isComplete(c, 2));
+          .map(c => fitStr(String(c || ''), 56, 11))
+          .filter(c => c.length >= 2);
       }
     }
     if (data.center) {
-      data.center.quote       = cleanCut(data.center.quote       || '', 18);
-      data.center.quote2      = cleanCut(data.center.quote2      || '', 18);
-      data.center.quoteSource = cleanCut(data.center.quoteSource || '', 14);
-      data.center.quoteContext= cleanCut(data.center.quoteContext|| '', 40);
+      data.center.quote       = fitStr(data.center.quote       || '', 294, 13.5);
+      data.center.quote2      = fitStr(data.center.quote2      || '', 294, 13.5);
+      data.center.quoteSource = fitStr(data.center.quoteSource || '', 220, 10);
+      data.center.quoteContext= cleanCut(data.center.quoteContext || '', 50);  // multi-line wrapStr
       ['cardA','cardB'].forEach(k => {
+        const isB = k === 'cardB';
         if (data.center[k]) {
-          data.center[k].title  = cleanCut(data.center[k].title  || '', 8);
-          data.center[k].body   = cleanCut(data.center[k].body   || '', 45);
-          data.center[k].source = cleanCut(data.center[k].source || '', 14);
+          data.center[k].title  = fitStr(data.center[k].title  || '', isB ? 146 : 138, 10);
+          data.center[k].body   = cleanCut(data.center[k].body   || '', 45);  // multi-line wrapStr
+          data.center[k].source = fitStr(data.center[k].source || '', isB ? 146 : 138, 9.5);
         }
       });
       if (data.center.tagGroup) {
-        data.center.tagGroup.label = cleanCut(data.center.tagGroup.label || '', 10);
+        data.center.tagGroup.label = fitStr(data.center.tagGroup.label || '', 294, 11);
         if (Array.isArray(data.center.tagGroup.items)) {
           data.center.tagGroup.items = data.center.tagGroup.items.map(it => ({
-            name: cleanCut(it.name || '', 5),
-            desc: cleanCut(it.desc || '', 5),
-          })).filter(it => isComplete(it.name, 2));
+            name: fitStr(it.name || '', 62, 11),
+            desc: fitStr(it.desc || '', 62, 9.5),
+          })).filter(it => it.name.length >= 2);
         }
       }
       if (Array.isArray(data.center.steps)) {
         data.center.steps = data.center.steps
-          .map(s => cleanCut(String(s || ''), 10))
-          .filter(s => isComplete(s, 3));
+          .map(s => fitStr(String(s || ''), 70, 9.5))
+          .filter(s => s.length >= 3);
       }
     }
     if (data.right) {
       if (Array.isArray(data.right.stats)) {
         data.right.stats = data.right.stats.map(s => ({
           ...s,
-          label:    cleanCut(s.label    || '', 10),
-          sublabel: cleanCut(s.sublabel || '', 12),
+          value:    fitStr(String(s.value || ''), 150, 26),
+          label:    fitStr(s.label    || '', 160, 10),
+          sublabel: fitStr(s.sublabel || '', 164, 9),
         }));
       }
       if (Array.isArray(data.right.refs)) {
         data.right.refs = data.right.refs.map(r => ({
-          title:  cleanCut(r.title  || '', 18),
-          author: cleanCut(r.author || '', 12),
+          title:  fitStr(r.title  || '', 148, 10.5),
+          author: fitStr(r.author || '', 148, 9.5),
         })).filter(r => r.title.length >= 2);
       }
     }
@@ -1432,6 +1446,14 @@ function wrapStr(text, maxPx, fontSize, maxLines = 2) {
   return lines;
 }
 
+// Scale font size DOWN so full text fits within maxPx — no truncation, no clipping
+function dynFont(text, maxPx, maxFs, minFs = 20) {
+  const available = maxPx * 0.90;
+  const w = [...text].reduce((s, c) => s + charW(c, maxFs), 0);
+  if (w <= available) return maxFs;
+  return Math.max(minFs, Math.floor(maxFs * available / w));
+}
+
 function renderKwCloud(kws) {
   document.getElementById('kwCloud').innerHTML = kws.length
     ? kws.map(k=>`<span class="kw-tag">${esc(k)}</span>`).join('')
@@ -1840,7 +1862,8 @@ function svgDashboard({ title, kws, insights, datapts, chars, mins, t, aiData })
   /* ── 文本截断 ── */
   const titleShort   = fitStr(title, 450, 19);
   const summaryShort = fitStr(summary, 560, 11.5);
-  const heroVal      = fitStr(String(hero.value  || ''), 150, 42);
+  const heroStr      = String(hero.value  || '—');
+  const heroFs       = dynFont(heroStr, 155, 42, 22);   // scale font down → never clips
   const heroLbl      = fitStr(String(hero.label  || ''), 168, 12);
   const heroChange   = fitStr(String(hero.change || ''), 100, 13);
   const heroBadge    = hero.badge ? fitStr(String(hero.badge), 212, 13) : (heroChange || '');
@@ -1911,10 +1934,12 @@ ${rv ? `<text x="262" y="${ry+38}" text-anchor="end" font-size="${i===0?24:20}" 
   });
 
   /* ── Cell E / F ── */
-  const msVal   = fitStr(String(ms.value   || ''), 170, 48);
+  const msStr   = String(ms.value   || '—');
+  const msFs    = dynFont(msStr, 175, 48, 22);           // scale font down → never clips
   const msCtx   = fitStr(String(ms.context || ''), 180, 10.5);
   const msBadge = fitStr(String(ms.badge   || ''), 180, 12);
-  const olVal   = fitStr(String(ol.value || ''), 210, 46);
+  const olStr   = String(ol.value || '—');
+  const olFs    = dynFont(olStr, 215, 46, 22);           // scale font down → never clips
   const olLabel = fitStr(String(ol.label || ''), 228, 10.5);
   const actStr  = fitStr((ol.actions||kws.slice(0,3)).slice(0,3).map(a=>fitStr(String(a),70,10.5)).join(' · '), 256, 10.5);
 
@@ -1952,7 +1977,7 @@ ${rv ? `<text x="262" y="${ry+38}" text-anchor="end" font-size="${i===0?24:20}" 
   <circle cx="112" cy="183" r="38" fill="rgba(255,255,255,0.13)"/>
   <rect x="50" y="100" width="124" height="22" rx="11" fill="rgba(255,255,255,0.2)"/>
   <text x="112" y="115" text-anchor="middle" font-size="10.5" fill="white" letter-spacing="2">核 心 成 就</text>
-  <text x="112" y="175" text-anchor="middle" font-size="42" font-weight="900" fill="white" letter-spacing="-1">${esc(heroVal)}</text>
+  <text x="112" y="175" text-anchor="middle" font-size="${heroFs}" font-weight="900" fill="white" letter-spacing="-1">${esc(heroStr)}</text>
   <text x="112" y="196" text-anchor="middle" font-size="12" fill="rgba(255,255,255,0.82)">${esc(heroLbl)}</text>
   ${heroChange ? `<rect x="56" y="238" width="112" height="30" rx="15" fill="rgba(255,255,255,0.22)" filter="url(#shSDB)"/>
   <text x="112" y="258" text-anchor="middle" font-size="13" font-weight="800" fill="white">${esc(heroChange)}</text>` : ''}
@@ -1989,7 +2014,7 @@ ${rv ? `<text x="262" y="${ry+38}" text-anchor="end" font-size="${i===0?24:20}" 
   <circle cx="418" cy="385" r="48" fill="rgba(255,255,255,0.10)"/>
   <rect x="324" y="316" width="188" height="22" rx="11" fill="rgba(255,255,255,0.22)"/>
   <text x="418" y="331" text-anchor="middle" font-size="10.5" fill="white" letter-spacing="2">里 程 碑</text>
-  <text x="418" y="390" text-anchor="middle" font-size="48" font-weight="900" fill="white" letter-spacing="-2">${esc(msVal)}</text>
+  <text x="418" y="390" text-anchor="middle" font-size="${msFs}" font-weight="900" fill="white" letter-spacing="-2">${esc(msStr)}</text>
   <text x="418" y="412" text-anchor="middle" font-size="10.5" fill="rgba(255,255,255,0.82)">${esc(msCtx)}</text>
   ${msBadge ? `<rect x="324" y="424" width="188" height="28" rx="14" fill="rgba(255,255,255,0.24)"/>
   <text x="418" y="443" text-anchor="middle" font-size="12" font-weight="700" fill="white">${esc(msBadge)}</text>` : ''}
@@ -2005,7 +2030,7 @@ ${rv ? `<text x="262" y="${ry+38}" text-anchor="end" font-size="${i===0?24:20}" 
   <text x="619" y="327" font-size="13" font-weight="800" fill="${t.h0}">未来展望</text>
   <text x="619" y="343" font-size="10.5" fill="${t.h1}">${esc(olLabel)}</text>
   <line x1="574" y1="352" x2="852" y2="352" stroke="${t.tag}" stroke-width="1"/>
-  <text x="712" y="408" text-anchor="middle" font-size="46" font-weight="900" fill="${t.h0}" letter-spacing="-1">${esc(olVal)}</text>
+  <text x="712" y="408" text-anchor="middle" font-size="${olFs}" font-weight="900" fill="${t.h0}" letter-spacing="-1">${esc(olStr)}</text>
   ${actStr ? `<rect x="574" y="438" width="278" height="20" rx="10" fill="rgba(107,91,149,0.08)"/>
   <text x="713" y="452" text-anchor="middle" font-size="10.5" fill="${t.h0}">${esc(actStr)}</text>` : ''}
 </g>
