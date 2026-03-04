@@ -80,8 +80,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica
 .section-subtitle { font-size: 12px; color: #9CA3AF; margin-left: 8px; font-weight: 400; }
 
 /* ── Doc Grid ── */
-.doc-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; }
-.doc-grid > * { width: 188px; flex-shrink: 0; }
+.doc-grid { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 28px; align-items: flex-start; }
+.doc-card, .doc-card-add { width: 188px; flex-shrink: 0; }
+#dynamicGrid { display: contents; }
 .doc-card { background: #fff; border: 1.5px solid #ECE9F8; border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.2s; }
 .doc-card:hover { border-color: #7C6FE0; box-shadow: 0 6px 22px rgba(124,111,224,0.15); transform: translateY(-2px); }
 .doc-thumb {
